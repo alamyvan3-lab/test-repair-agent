@@ -1,0 +1,10 @@
+--- a/grades/scale.py
++++ b/grades/scale.py
+@@ -8,6 +8,6 @@
+     if not 0 <= score <= 100:
+         raise ValueError(f"score out of range: {score}")
+     for cutoff, grade in THRESHOLDS:
+-        if score > cutoff:
++        if score >= cutoff:
+             return grade
+     return "F"

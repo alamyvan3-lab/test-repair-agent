@@ -1,0 +1,62 @@
+{
+  "pager_offbyone": {
+    "category": "off-by-one",
+    "description": "1-based page number converted to a 0-based offset incorrectly"
+  },
+  "grades_comparison": {
+    "category": "wrong comparison operator",
+    "description": "boundary score excluded by > instead of >="
+  },
+  "shapes_wrong_import": {
+    "category": "wrong import/name",
+    "description": "imports a function name that does not exist in the units module"
+  },
+  "stats_empty_input": {
+    "category": "mishandled empty input",
+    "description": "summary of an empty list crashes instead of returning None fields"
+  },
+  "cart_mutable_default": {
+    "category": "mutable default argument",
+    "description": "carts share one default list"
+  },
+  "temps_int_division": {
+    "category": "integer vs float division",
+    "description": "floor division truncates the average"
+  },
+  "filenames_slicing": {
+    "category": "incorrect string slicing",
+    "description": "extension slice keeps the dot"
+  },
+  "wordcount_dict_key": {
+    "category": "wrong dictionary key handling",
+    "description": "increments a missing key"
+  },
+  "profile_none_check": {
+    "category": "missed None check",
+    "description": "optional nickname is used without a None check"
+  },
+  "leaderboard_sort_key": {
+    "category": "incorrect sort key",
+    "description": "reverse=True also reverses the name tie-break"
+  },
+  "durations_two_functions": {
+    "category": "bug spanning two functions",
+    "description": "elapsed_ms returns seconds and describe() treats its result as seconds; both must change"
+  },
+  "checkout_second_file": {
+    "category": "fix requires reading a second file",
+    "description": "checkout treats a whole-percent discount (defined in discounts.py) as a fraction"
+  },
+  "email_regex_anchor": {
+    "category": "regex not anchored",
+    "description": "re.match accepts trailing junk after a valid address"
+  },
+  "inventory_early_return": {
+    "category": "early return inside loop",
+    "description": "returns True as soon as one line is in stock"
+  },
+  "config_exception_type": {
+    "category": "wrong exception type caught",
+    "description": "catches KeyError while int() raises TypeError/ValueError"
+  }
+}

@@ -1,0 +1,11 @@
+--- a/weather/stats.py
++++ b/weather/stats.py
+@@ -5,7 +5,7 @@
+     """Mean of the readings."""
+     if not readings:
+         raise ValueError("no readings")
+-    return sum(readings) // len(readings)
++    return sum(readings) / len(readings)
+ 
+ 
+ def daily_range(readings: list[int]) -> int:

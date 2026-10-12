@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "test-repair-agent"
+version = "0.1.0"
+description = "Repairs failing pytest suites with NVIDIA Nemotron models on Nebius Token Factory, inside a Docker sandbox."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = [
+    "openai==3.29.0",
+    "fastapi==0.143.0",
+    "uvicorn==0.54.0",
+    "pydantic==2.14.1",
+    "python-dotenv==1.2.4",
+    "pytest==9.1.1",
+]
+
+[project.optional-dependencies]
+dev = ["ruff==0.17.0"]
+
+[project.scripts]
+test-repair = "test_repair.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "live: makes real Token Factory calls (needs TOKEN_FACTORY_API_KEY and model IDs)",
+    "docker: needs a running Docker daemon and the sandbox image",
+]
+
+[tool.ruff]
+# Benchmark and example repos contain intentionally seeded bugs.
+extend-exclude = ["bench/repos", "examples"]

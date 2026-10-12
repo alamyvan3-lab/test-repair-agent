@@ -1,0 +1,9 @@
+--- a/shop/checkout.py
++++ b/shop/checkout.py
+@@ -7,5 +7,5 @@
+ def order_total(customer_tier: str, skus: list[str]) -> float:
+     """Sum of item prices after the tier discount, rounded to cents."""
+     subtotal = sum(price_of(sku) for sku in skus)
+-    discount = discount_for(customer_tier)
++    discount = discount_for(customer_tier) / 100
+     return round(subtotal * (1 - discount), 2)

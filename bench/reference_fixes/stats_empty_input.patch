@@ -1,0 +1,11 @@
+--- a/stats/summary.py
++++ b/stats/summary.py
+@@ -5,6 +5,8 @@
+ 
+ def summarize(values: list[float]) -> dict:
+     """count, mean, min, max. An empty list gives count 0 and None for the rest."""
++    if not values:
++        return {"count": 0, "mean": None, "min": None, "max": None}
+     return {
+         "count": len(values),
+         "mean": mean(values),

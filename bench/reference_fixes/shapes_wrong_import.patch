@@ -1,0 +1,22 @@
+--- a/shapes/area.py
++++ b/shapes/area.py
+@@ -2,16 +2,16 @@
+ 
+ import math
+ 
+-from .units import to_square_meters
++from .units import to_square_metres
+ 
+ 
+ def circle_area(radius: float, unit: str = "m") -> float:
+     if radius < 0:
+         raise ValueError("radius must be non-negative")
+-    return to_square_meters(math.pi * radius * radius, unit)
++    return to_square_metres(math.pi * radius * radius, unit)
+ 
+ 
+ def rectangle_area(width: float, height: float, unit: str = "m") -> float:
+     if width < 0 or height < 0:
+         raise ValueError("sides must be non-negative")
+-    return to_square_meters(width * height, unit)
++    return to_square_metres(width * height, unit)

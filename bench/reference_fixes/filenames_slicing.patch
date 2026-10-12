@@ -1,0 +1,11 @@
+--- a/files/names.py
++++ b/files/names.py
+@@ -11,7 +11,7 @@
+     dot = base.rfind(".")
+     if dot <= 0:
+         return ""
+-    return base[dot:].lower()
++    return base[dot + 1:].lower()
+ 
+ 
+ def stem(filename: str) -> str:

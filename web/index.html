@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test-Repair Agent</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1b1f24; --muted: #5d6673; --line: #dfe3e8;
+    --red: #c62828; --red-bg: #fdecea; --green: #1b7f3b; --green-bg: #e7f5ec;
+    --amber: #8a5a00; --amber-bg: #fff4dc; --ultra: #6a3fc7; --ultra-bg: #efe9fb;
+    --nano: #0b6e79; --nano-bg: #e3f3f5; --code-bg: #f0f2f5; --accent: #76b900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111418; --panel: #1a1e24; --text: #e6e9ed; --muted: #9aa4b1; --line: #2c323a;
+      --red: #ff8a80; --red-bg: #3a1d1d; --green: #7fd99a; --green-bg: #17301f;
+      --amber: #ffcf70; --amber-bg: #3a2f14; --ultra: #c7adff; --ultra-bg: #2b2140;
+      --nano: #7fd6e0; --nano-bg: #15303a; --code-bg: #14171c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  header h1 { margin: 0; font-size: 26px; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  .bar { height: 3px; width: 72px; background: var(--accent); border-radius: 2px; margin: 10px 0 18px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  select, button, input[type=file] { font: inherit; }
+  select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+           background: var(--panel); color: var(--text); min-width: 240px; }
+  button { padding: 8px 16px; border-radius: 8px; border: 0; background: var(--text);
+           color: var(--bg); cursor: pointer; font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .models { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; font-size: 13px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px;
+           font-weight: 600; white-space: nowrap; }
+  .ultra { background: var(--ultra-bg); color: var(--ultra); }
+  .nano { background: var(--nano-bg); color: var(--nano); }
+  .ok { background: var(--green-bg); color: var(--green); }
+  .bad { background: var(--red-bg); color: var(--red); }
+  .warn { background: var(--amber-bg); color: var(--amber); }
+  .neutral { background: var(--code-bg); color: var(--muted); }
+  #timeline { list-style: none; padding: 0; margin: 20px 0 0; }
+  #timeline li { display: grid; grid-template-columns: 64px 1fr; gap: 12px; padding: 10px 0;
+                 border-bottom: 1px solid var(--line); }
+  .t { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; padding-top: 2px; }
+  .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .label { font-weight: 600; }
+  .meta { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .msg { margin-top: 4px; overflow-wrap: anywhere; }
+  pre { background: var(--code-bg); border-radius: 8px; padding: 10px; margin: 8px 0 0;
+        overflow-x: auto; font: 12.5px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .diff .add { color: var(--green); } .diff .del { color: var(--red); } .diff .hunk { color: var(--ultra); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 6px; }
+  #summary { margin-top: 20px; display: none; }
+  #summary h2 { margin: 0 0 10px; font-size: 18px; display: flex; gap: 10px; align-items: center; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .table-wrap { overflow-x: auto; }
+  a { color: var(--ultra); }
+  #error { color: var(--red); margin-top: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Test-Repair Agent</h1>
+    <p>Repairs failing pytest suites with NVIDIA Nemotron on Nebius Token Factory, inside a sandbox.</p>
+    <div class="bar"></div>
+  </header>
+
+  <section class="panel">
+    <div class="controls">
+      <select id="demo" aria-label="Demo repository"></select>
+      <button id="run">Run repair</button>
+      <span id="upload-wrap" hidden>
+        <input id="zip" type="file" accept=".zip,application/zip" aria-label="Upload a repository zip">
+        <button id="upload">Run on upload</button>
+      </span>
+    </div>
+    <div class="hint" id="demo-desc"></div>
+    <div class="models" id="models"></div>
+    <div id="error" role="alert"></div>
+  </section>
+
+  <ol id="timeline" aria-live="polite"></ol>
+
+  <section class="panel" id="summary"></section>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const TYPES = ["run_started", "tests_run", "triage", "diagnosis", "patch_proposed", "patch_rejected",
+  "sanity_check", "patch_applied", "regression", "patch_reverted", "success", "failure"];
+const LABELS = { run_started: "Run started", triage: "Triage", diagnosis: "Diagnosis + patch",
+  patch_proposed: "Diff proposed", patch_rejected: "Diff rejected", sanity_check: "Sanity check",
+  patch_applied: "Patch applied", regression: "Regression", patch_reverted: "Patch reverted",
+  success: "Done", failure: "Stopped" };
+let demos = [], source = null, t0 = 0;
+
+function el(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text !== undefined && text !== null) node.textContent = String(text);
+  return node;
+}
+function badge(text, cls) { return el("span", "badge " + cls, text); }
+function diffView(diff) {
+  const pre = el("pre", "diff");
+  for (const line of String(diff).replace(/\n$/, "").split("\n")) {
+    const cls = line.startsWith("+++") || line.startsWith("---") ? "" : line.startsWith("+") ? "add"
+      : line.startsWith("-") ? "del" : line.startsWith("@@") ? "hunk" : "";
+    pre.append(el("span", cls, line + "\n"));
+  }
+  return pre;
+}
+function fmtTok(e) { return `${e.prompt_tokens} in / ${e.completion_tokens} out tok`; }
+
+function render(e) {
+  if (!t0) t0 = e.ts;
+  const li = el("li");
+  li.append(el("div", "t", `+${(e.ts - t0).toFixed(1)}s`));
+  const body = el("div");
+  const head = el("div", "head");
+  if (e.type === "tests_run") {
+    const d = e.data;
+    head.append(badge(d.timed_out ? "TIMEOUT" : d.all_passed ? "TESTS GREEN" : "TESTS RED",
+      d.all_passed ? "ok" : "bad"));
+  } else {
+    head.append(el("span", "label", LABELS[e.type] || e.type));
+  }
+  if (e.attempt) head.append(badge(`attempt ${e.attempt}`, "neutral"));
+  if (e.role) {
+    head.append(badge(e.role === "ultra" ? "ULTRA" : "NANO", e.role));
+    head.append(el("span", "meta", `${e.model} · ${fmtTok(e)} · ${e.latency_s.toFixed(2)}s`));
+  }
+  if (e.type === "patch_rejected") head.append(badge(e.data.stage || "rejected", "warn"));
+  if (e.type === "regression") head.append(badge("reverted", "bad"));
+  if (e.type === "sanity_check") {
+    head.append(badge(e.data.verdict, e.data.verdict === "special_case" ? "bad" : "ok"));
+  }
+  body.append(head);
+  body.append(el("div", "msg", e.message));
+
+  if (e.type === "tests_run" && !e.data.all_passed) {
+    if (e.data.failing && e.data.failing.length) {
+      body.append(el("div", "meta", "failing: " + e.data.failing.join(", ")));
+    }
+    const det = el("details");
+    det.append(el("summary", null, "pytest output (tail)"), el("pre", null, e.data.output_tail));
+    body.append(det);
+  }
+  if (e.type === "triage" && e.data.triage && e.data.triage.key_lines) {
+    body.append(el("pre", null, e.data.triage.key_lines.join("\n")));
+    body.append(el("div", "meta",
+      `compressed ${e.data.raw_output_chars} chars of pytest output to ${e.data.summary_chars} for Ultra`));
+  }
+  if (e.type === "patch_applied") body.append(diffView(e.data.diff));
+  if (e.type === "patch_proposed") {
+    const det = el("details");
+    det.append(el("summary", null, "raw diff from the model"), diffView(e.data.diff));
+    body.append(det);
+  }
+  li.append(body);
+  $("timeline").append(li);
+  if (e.type === "success" || e.type === "failure") renderSummary(e);
+}
+
+function stat(value, label) {
+  const box = el("div", "stat");
+  box.append(el("b", null, value), el("span", null, label));
+  return box;
+}
+
+function renderSummary(e) {
+  const r = e.data, box = $("summary");
+  box.replaceChildren();
+  box.style.display = "block";
+  const h = el("h2", null, "Result");
+  h.append(badge(r.status || "ERROR", r.status === "SUCCESS" ? "ok" : "bad"));
+  box.append(h, el("div", "msg", r.message || e.message));
+  if (r.initial) {
+    const stats = el("div", "stats");
+    stats.append(
+      stat(`${r.initial.failed + r.initial.errors} → ${r.final.failed + r.final.errors}`, "failing tests"),
+      stat(String(r.attempts), "attempts"),
+      stat(`${r.wall_time_s.toFixed(1)}s`, "wall time"),
+      stat(String(r.test_runs), "sandboxed test runs"));
+    box.append(stats);
+  }
+  if (r.diagnosis) {
+    box.append(el("h3", null, "Explanation (Ultra)"), el("div", "msg", r.diagnosis));
+  }
+  if (r.usage) {
+    const wrap = el("div", "table-wrap"), table = el("table");
+    const hr = el("tr");
+    for (const [t, c] of [["Role", ""], ["Model", ""], ["Calls", "n"], ["Prompt tok", "n"],
+      ["Completion tok", "n"], ["Total latency", "n"], ["Mean / call", "n"]]) hr.append(el("th", c, t));
+    table.append(hr);
+    for (const role of ["ultra", "nano"]) {
+      const u = r.usage[role];
+      if (!u) continue;
+      const tr = el("tr"), td = el("td");
+      td.append(badge(role.toUpperCase(), role));
+      tr.append(td, el("td", null, u.model), el("td", "n", u.calls), el("td", "n", u.prompt_tokens),
+        el("td", "n", u.completion_tokens), el("td", "n", `${u.latency_s.toFixed(2)}s`),
+        el("td", "n", u.calls ? `${(u.latency_s / u.calls).toFixed(2)}s` : "-"));
+      table.append(tr);
+    }
+    wrap.append(table);
+    box.append(wrap);
+  }
+  if (r.patch) {
+    box.append(el("h3", null, "Cumulative patch"), diffView(r.patch));
+  }
+}
+
+async function start(body, headers) {
+  $("error").textContent = "";
+  $("timeline").replaceChildren();
+  $("summary").style.display = "none";
+  t0 = 0;
+  if (source) source.close();
+  $("run").disabled = true;
+  try {
+    const res = await fetch("/api/runs", { method: "POST", headers, body });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || res.statusText);
+    const links = el("div", "hint");
+    source = new EventSource(data.events);
+    for (const type of TYPES) source.addEventListener(type, (m) => render(JSON.parse(m.data)));
+    source.addEventListener("end", () => {
+      source.close();
+      $("run").disabled = false;
+      const patch = el("a", null, "Download repair.patch");
+      patch.href = data.patch;
+      const report = el("a", null, "report.md");
+      report.href = `/api/runs/${data.id}/report`;
+      links.append(patch, document.createTextNode(" · "), report);
+      $("summary").append(links);
+    });
+    source.onerror = () => { $("run").disabled = false; };
+  } catch (err) {
+    $("error").textContent = err.message;
+    $("run").disabled = false;
+  }
+}
+
+async function init() {
+  try {
+    const health = await (await fetch("/api/health")).json();
+    const m = $("models");
+    m.append(badge("ULTRA", "ultra"), el("span", "meta", health.models.ultra || "not set"),
+      badge("NANO", "nano"), el("span", "meta", health.models.nano || "not set"),
+      badge("sandbox: " + health.sandbox, "neutral"));
+    if (!health.llm_configured) $("error").textContent = "Server has no Token Factory key or model IDs configured.";
+    $("upload-wrap").hidden = !health.uploads;
+    demos = await (await fetch("/api/demos")).json();
+    for (const d of demos) $("demo").append(el("option", null, d.name));
+    const show = () => {
+      const d = demos.find((x) => x.name === $("demo").value);
+      $("demo-desc").textContent = d ? d.description : "";
+    };
+    $("demo").addEventListener("change", show);
+    show();
+  } catch (err) {
+    $("error").textContent = "Could not reach the server: " + err.message;
+  }
+}
+
+$("run").addEventListener("click", () =>
+  start(JSON.stringify({ demo: $("demo").value }), { "Content-Type": "application/json" }));
+$("upload").addEventListener("click", () => {
+  const file = $("zip").files[0];
+  if (file) start(file, { "Content-Type": "application/zip" });
+});
+init();
+</script>
+</body>
+</html>

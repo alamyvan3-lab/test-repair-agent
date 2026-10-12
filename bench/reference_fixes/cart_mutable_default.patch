@@ -1,0 +1,14 @@
+--- a/cart/cart.py
++++ b/cart/cart.py
+@@ -4,9 +4,9 @@
+ 
+ 
+ class Cart:
+-    def __init__(self, owner: str, items: list = []):
++    def __init__(self, owner: str, items: list | None = None):
+         self.owner = owner
+-        self.items = items
++        self.items = list(items) if items is not None else []
+ 
+     def add(self, sku: str, price: float, qty: int = 1) -> None:
+         self.items.append((sku, price, qty))

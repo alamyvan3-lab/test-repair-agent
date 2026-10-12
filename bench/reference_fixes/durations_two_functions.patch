@@ -1,0 +1,22 @@
+--- a/timing/clock.py
++++ b/timing/clock.py
+@@ -5,4 +5,4 @@
+     """Milliseconds between two timestamps."""
+     if end < start:
+         raise ValueError("end before start")
+-    return end - start
++    return (end - start) * 1000
+--- a/timing/fmt.py
++++ b/timing/fmt.py
+@@ -3,7 +3,7 @@
+ 
+ def describe(start: float, end: float) -> str:
+     """Human-readable duration: '1.50 s' from one second up, else '250 ms'."""
+-    ms = elapsed_ms(start, end)
+-    if ms >= 1:
+-        return f"{ms:.2f} s"
+-    return f"{ms * 1000:.0f} ms"
++    seconds = elapsed_ms(start, end) / 1000
++    if seconds >= 1:
++        return f"{seconds:.2f} s"
++    return f"{seconds * 1000:.0f} ms"

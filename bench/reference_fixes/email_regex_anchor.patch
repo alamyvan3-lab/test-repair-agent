@@ -1,0 +1,8 @@
+--- a/validators/email.py
++++ b/validators/email.py
+@@ -5,4 +5,4 @@
+ 
+ def is_valid_email(address: str) -> bool:
+     """The whole string must be one address; any surrounding text makes it invalid."""
+-    return _EMAIL.match(address.lower()) is not None
++    return _EMAIL.fullmatch(address.lower()) is not None

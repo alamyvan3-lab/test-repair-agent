@@ -1,0 +1,11 @@
+--- a/users/display.py
++++ b/users/display.py
+@@ -5,7 +5,7 @@
+ 
+ def display_name(user: User) -> str:
+     """Nickname if set and not blank, otherwise 'First Last'."""
+-    nickname = user.nickname.strip()
++    nickname = (user.nickname or "").strip()
+     if nickname:
+         return nickname
+     return f"{user.first_name} {user.last_name}".strip()

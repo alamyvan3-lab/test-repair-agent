@@ -1,0 +1,8 @@
+--- a/invoice/coupons.py
++++ b/invoice/coupons.py
+@@ -11,4 +11,4 @@
+         raise ValueError(f"unknown coupon {code!r}") from None
+     if kind == "percent":
+         return round(amount * value / 100, 2)
+-    return value
++    return min(value, amount)

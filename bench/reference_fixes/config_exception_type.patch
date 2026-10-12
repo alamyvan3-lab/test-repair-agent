@@ -1,0 +1,9 @@
+--- a/appconfig/parse.py
++++ b/appconfig/parse.py
+@@ -7,5 +7,5 @@
+     """Integer value, or `default` when missing or not a number."""
+     try:
+         return int(raw)
+-    except KeyError:
++    except (TypeError, ValueError):
+         return default

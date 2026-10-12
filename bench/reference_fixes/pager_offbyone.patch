@@ -1,0 +1,9 @@
+--- a/pager/core.py
++++ b/pager/core.py
+@@ -12,5 +12,5 @@
+ def page(items: list, number: int, size: int) -> list:
+     """Items on page `number` (1-based)."""
+     check_page_args(number, size)
+-    start = number * size
++    start = (number - 1) * size
+     return items[start:start + size]
