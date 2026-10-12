@@ -37,6 +37,17 @@ observed:
   blocks and expose `ULTRA_EXTRA_BODY`/`NANO_EXTRA_BODY` as a workaround.
 - **[docs] The catalog page doesn't state the price currency.** I assumed USD for the cost
   columns and said so.
+- **[docs] The rate-limit page is the most useful page for agent builders.** It covers 429
+  with `Retry-After`, `x-ratelimit-remaining-*` headers, an `x-ratelimit-over-limit: yes`
+  early warning, and limits that scale up by 1.2× per 15-minute window at 80% usage (up to
+  20× base). The client honors `Retry-After`. It would help to state explicitly how many
+  concurrent requests per key are fine, since parallel candidate sampling depends on it.
+- **[docs] The structured-output page has rough edges** (read 2026-10-12). The Python
+  sample is missing a comma. The cURL sample writes `"response format"` with a space.
+  The "valid" schema example wraps the schema in `name`/`schema`/`strict`, which the
+  Python sample doesn't. The page also doesn't say whether Nemotron models carry the
+  "JSON mode" tag. The agent therefore uses `json_object` with an automatic fallback rather
+  than `json_schema`.
 
 ## Nebius AI Cloud (Serverless AI, Container Registry, MysteryBox)
 
@@ -80,4 +91,10 @@ observed:
 - Did Ultra follow the exact answer format? How often were corrections needed (count of
   `patch_rejected` events with `stage=validation`)?
 - Did Nano return valid JSON for triage and sanity checks (`valid_json` in triage events)?
+  Did the server accept `response_format` for Nano (look for `json_mode unsupported` in the
+  logs)?
+- Parallel candidates: did 3 concurrent Ultra calls take about as long as one? Compare
+  the per-call latency of a `CANDIDATES=1` run against a `CANDIDATES=3` run.
+- Ablations: pass rate with each technique switched off (`--set SBFL=false`,
+  `--set CANDIDATES=1`, ...).
 - Serverless deployment: anything that differed from the docs:

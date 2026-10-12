@@ -8,8 +8,11 @@
 | `llm.py` | `TokenFactoryClient`: the OpenAI-compatible client with retries, backoff, per-call accounting and logging, and `<think>` stripping. `ChatModel` protocol for fakes. |
 | `prompts.py` | All prompt text and builders. Untrusted data is wrapped in tags, and closing tags inside it are neutralized. |
 | `pytest_parser.py` | Parses `pytest -q --tb=short -rfE` output into failing test IDs, messages, tracebacks, `file:line` frames, and counts. Handles Windows paths, collection errors, and truncated output. |
-| `localize.py` | Ranks non-test source files by evidence and returns the top K with size-capped content. |
-| `patcher.py` | Extracts the single fenced diff, parses it, validates it, relocates hunks by content, re-renders a standard diff, and runs `git apply --check` and then `git apply`. |
+| `localize.py` | Ranks non-test source files by evidence (SBFL, traceback, imports) and returns the top K, collapsing large files to a skeleton. |
+| `sbfl.py` | Stdlib-only pytest coverage plugin (injected into the sandbox copy) plus Ochiai ranking of source lines. |
+| `patcher.py` | Extracts the single fenced diff, parses it, and validates it (paths, protection, anti-gaming patterns, size). Relocates hunks by content, compile-checks the result, re-renders a standard diff, and runs `git apply --check` and then `git apply`. |
+| `candidates.py` | Merges candidates with the same normalized AST into votes and ranks the distinct ones by test results. |
+| `minimize.py` | Repeated one-region-at-a-time reduction of a passing patch to a 1-minimal one. |
 | `workspace.py` | Temporary git-tracked copy of the target repo: baseline commit, commit per kept attempt, revert, cumulative diff. |
 | `sandbox.py` | `DockerSandbox` (default) and `LocalSandbox` (fallback). Bounded output capture and host-side timeout. |
 | `agent.py` | The repair loop and the `RunResult`. |
@@ -23,29 +26,51 @@
 1. Copy the repo into a temp dir, `git init`, and commit a baseline.
 2. Run the tests in the sandbox. If green, the run is a SUCCESS. pytest exit codes 3, 4,
    and 5 (internal or usage error, no tests) give ERROR.
-3. For each attempt up to `MAX_ATTEMPTS`:
+3. **Isolation rerun** (`ISOLATION_RERUN`): rerun only the failing tests with
+   `--tb=long -l`. Tests that pass this way are reported to Ultra as likely shared-state
+   bugs. If they still fail, the richer output (long tracebacks with local variables)
+   becomes the first triage input.
+4. **SBFL** (`SBFL`): one extra sandbox run with the coverage plugin produces Ochiai scores
+   per source line. It is repeated after each kept partial fix.
+5. For each attempt up to `MAX_ATTEMPTS`:
    1. **Nano triage**: raw output (clipped to `MAX_TRIAGE_CHARS`, head and tail) becomes
-      JSON with failing tests, error class, key lines, and a summary.
+      JSON with failing tests, error class, key lines, and a summary. JSON mode is used
+      when the model accepts it.
    2. **Localize**: rank suspect files (below).
-   3. **Ultra**: the prompt holds the compact parsed failures, the triage summary, the
-      suspect files, and up to 3 earlier attempts (diff, outcome, resulting failures).
-      Ultra answers with `DIAGNOSIS:` and one fenced diff.
-   4. **Validate**. On any `PatchError`, the exact message goes back to Ultra in the same
-      conversation, up to `MAX_CORRECTIONS` times. No test run is spent.
-   5. **Nano sanity check** on the validated diff. A `special_case` verdict is sent back as
+   3. **Ultra × `CANDIDATES`, concurrently**: each prompt holds the compact parsed
+      failures, the triage summary, the SBFL lines, the isolation hint, the suspect files,
+      and up to 3 earlier attempts (diff, outcome, resulting failures). Each candidate
+      uses its own temperature from `CANDIDATE_TEMPERATURES`. Ultra answers with
+      `DIAGNOSIS:` and one fenced diff.
+   4. **Validate** each candidate independently: paths, protection, anti-gaming patterns,
+      size, content relocation, compile check, and `git apply --check`. On any
+      `PatchError`, the exact message goes back to Ultra in that candidate's conversation,
+      up to `MAX_CORRECTIONS` times. No test run is spent.
+   5. **Nano sanity check** on each validated diff. A `special_case` verdict is sent back as
       a correction (it shares the correction budget).
-   6. **Apply** and rerun the tests. Compare with the previous run:
-      - all green: commit, SUCCESS;
+   6. **Select**: candidates with the same normalized AST merge into votes. With one
+      distinct candidate it is applied and tested directly. With several, each is tested
+      in a scratch copy in parallel and they are ranked: green, most passing, fewest
+      failing, most votes, smallest diff, lowest index. The winner is applied.
+   7. Compare with the previous run:
+      - all green: commit, minimize (below), SUCCESS;
       - regressed (fewer passing, more failing, or a new timeout): revert and record it;
       - same failure signature (no effect): revert and record it;
-      - improved or failures changed: commit (keep) and continue from the new state.
-4. When attempts run out the status is EXHAUSTED. A token or time budget breach gives
+      - improved or failures changed: commit (keep), refresh SBFL, and continue.
+6. **Minimize** (`MINIMIZE_PATCH`): each change region of the final patch is tentatively
+   reverted in a scratch copy, and the revert is kept if the suite stays green. Passes
+   repeat until stable, within `MINIMIZE_MAX_RUNS`. The reduced patch is confirmed on the
+   real tree before it is committed. On any doubt (a failed confirmation, sandbox error, or
+   budget) the original fix stays.
+7. When attempts run out the status is EXHAUSTED. A token or time budget breach gives
    ABORTED_GUARDRAIL. Model, sandbox, or git failures give ERROR.
-5. Write `repair.patch` (cumulative `git diff` against the baseline), `report.md`, and
+8. Write `repair.patch` (cumulative `git diff` against the baseline), `report.md`, and
    `events.jsonl`. Everything is redacted.
 
 ### Localization scoring
 
+- SBFL: 4.0 × the file's best Ochiai line score. A score of 1.0 means the line ran in every
+  failing test and in no passing test.
 - Traceback frame in a non-test repo file: 3.0 × (1 + depth/len) per frame. Deeper frames
   are closer to the error.
 - Defines a name that a failing test file imports (`from pkg import name`, so re-exports
@@ -143,3 +168,29 @@ Reasonable calls made without asking, as the brief allowed.
     contain intentional bugs (e.g. a mutable default argument).
 18. **Python versions:** 3.11+ supported. The images use 3.12, and development and tests
     ran on 3.14.
+19. **Candidate temperatures stay within 0-0.2.** Agentless samples at 0.8 for diversity.
+    The brief asks for low temperatures in patch generation, so the candidates use
+    0.0 / 0.1 / 0.2 and draw diversity from those plus independent corrections.
+    `CANDIDATE_TEMPERATURES` can widen this for experiments.
+20. **Candidates are evaluated in scratch copies**, not by applying and reverting in the
+    workspace, so they can run in parallel. The winner's existing test result is reused,
+    with no rerun. Single-shot mode always uses one candidate.
+21. **SBFL runs once per workspace state**: at the start and after each kept partial fix.
+    It needs at least one failing test, not just a collection error. Skipped tests count
+    as neither failing nor passing.
+22. **The coverage plugin is stdlib-only** (`sys.monitoring` with `DISABLE` and
+    `restart_events` per test, or `sys.settrace` before Python 3.12). It is written into
+    the sandbox copy, never into the workspace, and its output is one JSON line in the
+    pytest terminal summary.
+23. **Isolation rerun runs the failing subset together**, not one process per test, to keep
+    the cost at one sandbox run. "Passes without the rest of the suite" is the precise
+    claim made to the model.
+24. **Minimization works on contiguous change regions**, not lines, and only on files that
+    existed at the baseline (new files stay whole). It is confirmed on the real tree before
+    being committed, because a flaky pass in a scratch copy must not remove a needed change.
+25. **Static anti-gaming checks only look at added lines**, so existing code that imports
+    pytest is unaffected. They run before the Nano review and cost nothing.
+26. **JSON mode is best-effort per model**: the first HTTP 400 on a `response_format`
+    request disables it for that model, for the rest of the client's life.
+27. **`Retry-After` is capped at 60 s**, so a misbehaving header cannot stall a run past the
+    time budget.

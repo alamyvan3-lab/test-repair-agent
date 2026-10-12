@@ -15,14 +15,18 @@ from pydantic import BaseModel, Field
 EventType = Literal[
     "run_started",
     "tests_run",
+    "isolation_check",
+    "sbfl",
     "triage",
     "diagnosis",
     "patch_proposed",
     "patch_rejected",
     "sanity_check",
+    "candidates_ranked",
     "patch_applied",
     "regression",
     "patch_reverted",
+    "patch_minimized",
     "success",
     "failure",
 ]

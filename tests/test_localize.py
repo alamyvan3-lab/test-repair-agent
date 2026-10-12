@@ -39,3 +39,19 @@ def test_content_is_size_capped(local_sandbox: LocalSandbox):
     repo = BENCH / "repos" / "pager_offbyone"
     suspects = localize(run_report(repo, local_sandbox), repo, top_k=1, max_chars=40)
     assert len(suspects) == 1 and len(suspects[0].content) == 40 and suspects[0].truncated
+
+
+def test_skeleton_keeps_suspect_functions_and_elides_others():
+    from test_repair.localize import skeleton
+
+    source = (
+        "import math\n\n\n"
+        "def keep_me(x):\n    y = x + 1\n    return y\n\n\n"
+        "def other(x):\n    \"\"\"Doc stays.\"\"\"\n    a = 1\n    b = 2\n    return a + b\n\n\n"
+        "class K:\n    def m(self):\n        return 1\n"
+    )
+    out = skeleton(source, {"keep_me"})
+    assert "    y = x + 1\n    return y\n" in out
+    assert '    """Doc stays."""\n    ...  # 3 lines elided' in out
+    assert "        ...  # 1 lines elided" in out
+    assert "import math" in out and "class K:" in out

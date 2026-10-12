@@ -30,22 +30,29 @@ with NVIDIA Nemotron models on Nebius Token Factory."
 1. *TESTS RED* appears (0:25).
    "First it runs the suite in a fresh Docker container: no network, read-only filesystem,
    memory and CPU limits, hard timeout. Five pass, two fail."
-2. *Triage, with the NANO badge* (0:35). Point at the model ID, tokens, and latency.
+2. *Fault localization (SBFL)* (0:32). Point at the top suspicious line.
+   "Before asking any model, we record which lines each test runs. Lines run by failing
+   tests and not by passing ones score high. That's a classic software-engineering
+   research technique, and it often points straight at the bug."
+3. *Triage, with the NANO badge* (0:42). Point at the model ID, tokens, and latency.
    "Nemotron Nano reads the raw pytest output and condenses it. Here it turned
    [N] characters into [M] for the big model. It's cheap and fast, and it runs every attempt."
-3. *Diagnosis + patch, with the ULTRA badge* (0:50). Read the diagnosis aloud.
-   "Nemotron Ultra gets the triage, the source files our localizer ranked from the
-   traceback and imports, and any earlier failed attempts. It writes a diagnosis and one
-   unified diff."
-4. *Sanity check (NANO)* (1:05).
-   "Before anything runs, Nano checks the patch isn't gaming the tests, like hard-coding
+4. *Diagnosis + patch, with the ULTRA badge, three candidates* (0:50). Read one diagnosis
+   aloud.
+   "Nemotron Ultra gets the triage, the suspicious lines, the ranked source files, and any
+   earlier failed attempts. We ask it for three patches in parallel on Token Factory."
+5. *Sanity check (NANO)* (1:00).
+   "Before anything runs, Nano checks each patch isn't gaming the tests, like hard-coding
    an expected value. The validator has already checked that it doesn't touch test files,
-   stays inside the repo, and is under 60 lines."
-5. *Patch applied* then *TESTS GREEN* (1:15). Show the diff.
-   "Applied, rerun, green."
-6. If the run had a rejected diff or a reverted regression, point at it:
+   stays inside the repo, compiles, and is under 60 lines."
+6. *Candidates ranked*, then *Patch applied* and *TESTS GREEN* (1:10). Show the diff.
+   "Patches that are the same program merge into votes. The distinct ones run in parallel
+   sandboxes, and the best one by real test results is applied. Green."
+7. *Patch minimized* (1:22), if it appears.
+   "Finally it removes any part of the patch the tests don't need, so the fix stays minimal."
+8. If the run had a rejected diff or a reverted regression, point at it:
    "When a patch fails, the agent reverts it and Ultra sees exactly why on the next try."
-7. Scroll to the **Result** panel (1:30). Show the per-role table and the
+9. Scroll to the **Result** panel (1:30). Show the per-role table and the
    **Download repair.patch** link.
    "Every step is logged with role, model, tokens and latency. The output is a patch file
    and a plain-language explanation."

@@ -90,3 +90,27 @@ def test_strip_reasoning_variants():
     assert strip_reasoning("a<think>x\ny</think>b") == "ab"
     assert strip_reasoning("reasoning only</think>final") == "final"
     assert strip_reasoning("plain") == "plain"
+
+
+def test_rate_limit_honors_retry_after(settings: Settings):
+    resp = httpx2.Response(429, request=REQUEST, headers={"retry-after": "7"})
+    err = openai.RateLimitError("slow down", response=resp, body=None)
+    client, _, delays = client_with(settings, [err, response("ok")])
+    assert client.chat("nano", [{"role": "user", "content": "x"}]).text == "ok"
+    assert delays == [7.0]
+
+
+def test_json_mode_falls_back_when_unsupported(settings: Settings):
+    resp = httpx2.Response(400, request=REQUEST)
+    err = openai.BadRequestError("response_format not supported", response=resp, body=None)
+    client, completions, _ = client_with(settings, [err, response("{}"), response("{}")])
+    client.chat("nano", [{"role": "user", "content": "x"}], json_mode=True)
+    client.chat("nano", [{"role": "user", "content": "x"}], json_mode=True)
+    sent = [k.get("response_format") for k in completions.kwargs]
+    assert sent == [{"type": "json_object"}, None, None]  # remembered after the first 400
+
+
+def test_temperature_override(settings: Settings):
+    client, completions, _ = client_with(settings, [response("ok")])
+    client.chat("ultra", [{"role": "user", "content": "x"}], temperature=0.2)
+    assert completions.kwargs[0]["temperature"] == 0.2

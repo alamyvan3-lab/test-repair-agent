@@ -18,13 +18,19 @@
 | Demo video script (≤ 3 min) | `docs/DEMO_SCRIPT.md` | Done; fill the numbers from results.md |
 | Example red-to-green run with real calls | `docs/example_run.md` | **To do: `test-repair run examples/demo_invoice --save-md docs/example_run.md`** |
 | Benchmark with real results and a single-shot baseline | `bench/results/results.md` | **To do: run the benchmark** |
-| Unit and guardrail tests pass | `pytest` | 122 passed, 22 skipped (Docker/live) on the build machine and in a fresh clone |
+| Unit and guardrail tests pass | `pytest` | 152 passed, 22 skipped (Docker/live) on the build machine and in a fresh clone; CI runs the Docker ones |
 
 ## Only you can do these
 
+0. **Fastest way to verify the Docker sandbox without installing Docker:** push the repo to
+   GitHub. The `ci` workflow runs lint and every test on Python 3.11 to 3.13 with the
+   sandbox image built, so the Docker tests run there. To run live tests and the benchmark
+   in CI, add a repository secret `TOKEN_FACTORY_API_KEY` and variables `MODEL_ULTRA` /
+   `MODEL_NANO`. Then start the workflow manually with "live" ticked; the benchmark results
+   are uploaded as an artifact.
 1. **Get the prerequisites working:** install Docker (on Windows: `wsl --install` in an
    admin PowerShell, reboot, install Docker Desktop) and add `TOKEN_FACTORY_API_KEY` to
-   `.env`.
+   `.env`. `test-repair doctor` shows what is still missing.
 2. **Verify the models:** `python scripts/hello_tokenfactory.py`. If Ultra or Nano is not
    available to your account, set the closest Nemotron model it suggests and note the
    substitution in `README.md` ("How Nemotron is used") and `FEEDBACK.md`.

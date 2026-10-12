@@ -136,3 +136,11 @@ def test_nebius_jobs_runner_uses_documented_cli(settings: Settings):
 def test_nebius_jobs_runner_requires_secret_selector(settings: Settings):
     with pytest.raises(ConfigError, match="MysteryBox"):
         NebiusJobsRunner(settings, image="img", api_key_secret="")
+
+
+@pytest.mark.parametrize("bad", ["lowercase=1", "NOEQUALS", "TOKEN_FACTORY_API_KEY=x"])
+def test_bench_set_rejects_bad_overrides(bad: str, capsys):
+    from test_repair.benchmark import main
+
+    assert main(["--set", bad]) == 2
+    assert "--set expects KEY=VALUE" in capsys.readouterr().err

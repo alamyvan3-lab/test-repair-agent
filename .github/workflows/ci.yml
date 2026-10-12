@@ -1,0 +1,58 @@
+# Lint + tests on every push. GitHub-hosted Ubuntu runners have Docker, so the Docker
+# sandbox tests (network blocked, timeout kill, read-only root, reference fixes in Docker)
+# run here instead of being skipped. Live Token Factory runs are manual and opt-in.
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      live:
+        description: "Also run live Token Factory tests and the benchmark (uses the TOKEN_FACTORY_API_KEY secret)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: docker build -t test-repair-sandbox:latest sandbox/
+      - run: pytest -q -rs
+
+  live:
+    if: github.event_name == 'workflow_dispatch' && inputs.live
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      TOKEN_FACTORY_API_KEY: ${{ secrets.TOKEN_FACTORY_API_KEY }}
+      MODEL_ULTRA: ${{ vars.MODEL_ULTRA }}
+      MODEL_NANO: ${{ vars.MODEL_NANO }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: docker build -t test-repair-sandbox:latest sandbox/
+      - run: test-repair doctor
+      - run: pytest -m live -s
+      - run: test-repair bench --trials 1
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bench-results
+          path: bench/results/

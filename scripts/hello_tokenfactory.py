@@ -16,26 +16,16 @@ import json
 import sys
 import time
 import urllib.error
-import urllib.request
 from pathlib import Path
 
 import openai
 from dotenv import load_dotenv
 
 from test_repair.config import DEFAULT_BASE_URL, Settings
+from test_repair.llm import list_models
 
 # A second regional endpoint used in Nebius's own Nemotron cookbook examples.
 REGIONAL_BASE_URL = "https://api.tokenfactory.us-central1.nebius.com/v1/"
-
-
-def list_models(base_url: str, api_key: str) -> list[dict]:
-    """GET {base_url}models?verbose=true (documented Token Factory endpoint)."""
-    req = urllib.request.Request(
-        base_url.rstrip("/") + "/models?verbose=true",
-        headers={"Authorization": f"Bearer {api_key}"},
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8")).get("data", [])
 
 
 def pick(ids: list[str], prefer: list[str]) -> str:

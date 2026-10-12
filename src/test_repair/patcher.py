@@ -10,12 +10,28 @@ import difflib
 import re
 import subprocess
 import tempfile
+import warnings
 from dataclasses import dataclass, field
 from itertools import pairwise
 from pathlib import Path, PurePosixPath
 
 _FENCE_RE = re.compile(r"```(?:diff|patch|udiff)[^\n]*\n(.*?)```", re.DOTALL)
-_HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+# Line numbers are optional: hunks are located by content (Aider-style "@@ ... @@" works too).
+_HUNK_RE = re.compile(r"^@@(?: -(\d+)(?:,\d+)? \+\d+(?:,\d+)?)? @@")
+# Added code that games the test run instead of fixing logic (cf. ImpossibleBench, 2025).
+_GAMING_PATTERNS = [
+    (re.compile(r"PYTEST_CURRENT_TEST"), "reads PYTEST_CURRENT_TEST to detect the test run"),
+    (re.compile(r"\bimport\s+_?pytest\b|\bfrom\s+_?pytest\b|['\"]_?pytest['\"]\s*in\s+sys\.modules"
+                r"|sys\.modules\s*(\[|\.get\()\s*['\"]_?pytest"),
+     "detects or imports pytest from source code"),
+    (re.compile(r"\binspect\.(stack|currentframe|getouterframes)\b|\bsys\._getframe\b"
+                r"|\btraceback\.extract_stack\b"),
+     "inspects the call stack, which can be used to special-case test callers"),
+    (re.compile(r"['\"][^'\"\n]*(\btests?/|\btest_\w+\.py\b|conftest\.py)[^'\"\n]*['\"]"),
+     "references test files"),
+    (re.compile(r"\bunittest\.mock\b|\bmock\.patch\b|\bMagicMock\b"),
+     "adds mocking to source code"),
+]
 _DRIVE_RE = re.compile(r"^[A-Za-z]:")
 _TEST_DIRS = {"tests", "test"}
 _CONFIG_FILES = {
@@ -69,6 +85,7 @@ class PreparedPatch:
     diff: str
     files: list[str]
     changed_lines: int
+    new_contents: dict[str, str] = field(default_factory=dict)  # path -> patched file text
 
 
 def is_test_file(path: str) -> bool:
@@ -150,7 +167,7 @@ def parse_diff(diff: str) -> list[FilePatch]:
             m = _HUNK_RE.match(line)
             if not m:
                 raise PatchError(f"Malformed hunk header {line!r}. Expected '@@ -L,N +L,N @@'.")
-            hunk = Hunk(old_start=int(m.group(1)), lines=[])
+            hunk = Hunk(old_start=int(m.group(1) or 0), lines=[])
             i += 1
             pending_blank = 0  # blank lines are context lines whose leading space was lost
             while i < len(lines) and not (
@@ -227,6 +244,7 @@ def validate(files: list[FilePatch], repo: Path, max_changed_lines: int) -> int:
             raise PatchError(f"{path} already exists; use '--- a/{path}' to modify it.")
         if fp.old_path is not None and not target.is_file():
             raise PatchError(f"File not found in the repository: {path}.")
+        _check_gaming(fp)
         total += sum(h.changed for h in fp.hunks)
     if total > max_changed_lines:
         raise PatchError(
@@ -236,16 +254,71 @@ def validate(files: list[FilePatch], repo: Path, max_changed_lines: int) -> int:
     return total
 
 
-def _find(haystack: list[str], needle: list[str], hint: int) -> int | None:
-    """Locate `needle` in `haystack`, exact first, then ignoring trailing whitespace."""
+def _check_gaming(fp: FilePatch) -> None:
+    """Reject added lines that detect or special-case the test run instead of fixing logic."""
+    for hunk in fp.hunks:
+        for line in hunk.lines:
+            if line[:1] != "+":
+                continue
+            for pattern, why in _GAMING_PATTERNS:
+                if pattern.search(line):
+                    raise PatchError(
+                        f"The added line {line[1:].strip()[:120]!r} in {fp.path} {why}. Fix "
+                        "the underlying logic so it is correct for all inputs, without "
+                        "referring to the tests."
+                    )
+
+
+def _indent(line: str) -> int | None:
+    """Number of leading spaces, or None if the indentation uses tabs."""
+    rest = line.lstrip(" ")
+    return None if rest.startswith("\t") else len(line) - len(rest)
+
+
+def _indent_delta(file_part: list[str], needle: list[str]) -> int | None:
+    """The single indentation shift that maps `needle` onto `file_part`, if one exists."""
+    deltas = set()
+    for real, model in zip(file_part, needle, strict=True):
+        if not real.strip():
+            continue
+        a, b = _indent(real), _indent(model)
+        if a is None or b is None:
+            return None
+        deltas.add(a - b)
+    return deltas.pop() if len(deltas) == 1 else None
+
+
+def _reindent(line: str, delta: int) -> str:
+    if delta > 0 and line.strip():
+        return " " * delta + line
+    if delta < 0:
+        return line[min(-delta, _indent(line) or 0):]
+    return line
+
+
+def _find(haystack: list[str], needle: list[str], hint: int) -> tuple[int, int] | None:
+    """Locate `needle` in `haystack` as (position, indentation shift).
+
+    Tries an exact match, then ignores trailing whitespace, then accepts a uniform
+    indentation shift (models often lose one level inside methods). The match nearest
+    to the model's stated line wins.
+    """
+    n = len(needle)
     for norm in (lambda s: s, str.rstrip):
         hay = [norm(x) for x in haystack]
         target = [norm(x) for x in needle]
-        n = len(target)
         hits = [i for i in range(len(hay) - n + 1) if hay[i : i + n] == target]
         if hits:
-            return min(hits, key=lambda i: abs(i - hint))
-    return None
+            return min(hits, key=lambda i: abs(i - hint)), 0
+    hay = [x.strip() for x in haystack]
+    target = [x.strip() for x in needle]
+    shifted = []
+    for i in range(len(hay) - n + 1):
+        if hay[i : i + n] == target:
+            delta = _indent_delta(haystack[i : i + n], needle)
+            if delta is not None:
+                shifted.append((i, delta))
+    return min(shifted, key=lambda h: abs(h[0] - hint)) if shifted else None
 
 
 def _mismatch(path: str, number: int, old: list[str], haystack: list[str]) -> PatchError:
@@ -275,12 +348,15 @@ def _unified(path: str, before: list[str], after: list[str], new_file: bool) -> 
     return out
 
 
-def _render_file(fp: FilePatch, repo: Path) -> list[str]:
-    """Locate hunks by content, apply them in memory, and re-diff against the real file."""
+def _render_file(fp: FilePatch, repo: Path) -> tuple[list[str], str]:
+    """Locate hunks by content, apply them in memory, and re-diff against the real file.
+
+    Returns the rendered diff lines and the patched file text.
+    """
     path = fp.new_path or ""
     if fp.old_path is None:
         added = [ln[1:] + "\n" for h in fp.hunks for ln in h.lines if ln[:1] == "+"]
-        return _unified(path, [], added, new_file=True)
+        return _unified(path, [], added, new_file=True), "".join(added)
     try:
         source = (repo / path).read_bytes().decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -288,25 +364,25 @@ def _render_file(fp: FilePatch, repo: Path) -> list[str]:
     eol = "\r\n" if "\r\n" in source else "\n"
     file_lines = source.splitlines()
 
-    located: list[tuple[int, Hunk]] = []
+    located: list[tuple[int, int, Hunk]] = []
     for number, hunk in enumerate(fp.hunks, 1):
         old = hunk.old_lines
         if not old:  # pure insertion without context: trust the stated position
-            located.append((min(max(hunk.old_start, 0), len(file_lines)), hunk))
+            located.append((min(max(hunk.old_start, 0), len(file_lines)), 0, hunk))
             continue
-        pos = _find(file_lines, old, hunk.old_start - 1)
-        if pos is None:
+        found = _find(file_lines, old, hunk.old_start - 1)
+        if found is None:
             raise _mismatch(path, number, old, file_lines)
-        located.append((pos, hunk))
+        located.append((found[0], found[1], hunk))
 
     located.sort(key=lambda item: item[0])
-    for (pos_a, a), (pos_b, _) in pairwise(located):
+    for (pos_a, _, a), (pos_b, _, _) in pairwise(located):
         if pos_a + len(a.old_lines) > pos_b:
             raise PatchError(f"Hunks in {path} overlap; merge them into one hunk.")
 
     after: list[str] = []
     cursor = 0
-    for pos, hunk in located:
+    for pos, delta, hunk in located:
         after += file_lines[cursor:pos]
         real = iter(file_lines[pos : pos + len(hunk.old_lines)])
         for ln in hunk.lines:
@@ -315,7 +391,7 @@ def _render_file(fp: FilePatch, repo: Path) -> list[str]:
             elif ln[:1] == "-":
                 next(real)
             elif ln[:1] == "+":
-                after.append(ln[1:])
+                after.append(_reindent(ln[1:], delta))
         cursor = pos + len(hunk.old_lines)
     after += file_lines[cursor:]
     if after == file_lines:
@@ -327,7 +403,25 @@ def _render_file(fp: FilePatch, repo: Path) -> list[str]:
             out[-1] = out[-1].removesuffix(eol)
         return out
 
-    return _unified(path, with_eol(file_lines), with_eol(after), new_file=False)
+    patched = with_eol(after)
+    return _unified(path, with_eol(file_lines), patched, new_file=False), "".join(patched)
+
+
+def _check_compiles(path: str, text: str) -> None:
+    """Reject syntax errors before spending a sandbox run (Agentless filters these too)."""
+    if not path.endswith(".py"):
+        return
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            compile(text, path, "exec", dont_inherit=True)
+    except SyntaxError as exc:
+        raise PatchError(
+            f"After applying the diff, {path} does not compile: {exc.msg} (line {exc.lineno}). "
+            "Check indentation and syntax."
+        ) from exc
+    except ValueError as exc:
+        raise PatchError(f"After applying the diff, {path} is not valid source: {exc}.") from exc
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -354,15 +448,20 @@ def _git_apply(repo: Path, diff: str, check: bool) -> None:
 
 
 def prepare(model_text: str, repo: Path, max_changed_lines: int) -> PreparedPatch:
-    """Extract, validate, normalize, and dry-run a model's diff against `repo`."""
+    """Extract, validate, normalize, compile-check, and dry-run a model's diff on `repo`."""
     files = parse_diff(extract_diff(model_text))
     changed = validate(files, repo, max_changed_lines)
     rendered: list[str] = []
+    contents: dict[str, str] = {}
     for fp in files:
-        rendered.extend(_render_file(fp, repo))
+        lines, text = _render_file(fp, repo)
+        _check_compiles(fp.path, text)
+        rendered.extend(lines)
+        contents[fp.path] = text
     diff = "\n".join(rendered) + "\n"
     _git_apply(repo, diff, check=True)
-    return PreparedPatch(diff=diff, files=[fp.path for fp in files], changed_lines=changed)
+    return PreparedPatch(diff=diff, files=[fp.path for fp in files], changed_lines=changed,
+                         new_contents=contents)
 
 
 def apply(patch: PreparedPatch, repo: Path) -> None:

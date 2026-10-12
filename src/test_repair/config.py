@@ -42,6 +42,16 @@ def _opt_float(name: str) -> float | None:
     return _float(name, 0.0) if raw else None
 
 
+def _floats(name: str, default: tuple[float, ...]) -> tuple[float, ...]:
+    raw = _str(name)
+    if not raw:
+        return default
+    try:
+        return tuple(float(x) for x in raw.split(",") if x.strip())
+    except ValueError as exc:
+        raise ConfigError(f"{name} must be comma-separated numbers, got {raw!r}") from exc
+
+
 def _bool(name: str, default: bool) -> bool:
     raw = _str(name).lower()
     if not raw:
@@ -104,6 +114,14 @@ class Settings:
     sandbox_cpus: str = "1"
     sandbox_pids: int = 128
     max_output_bytes: int = 64_000
+    # Techniques (see README "Techniques and sources"); each can be switched off for ablations.
+    candidates: int = 3
+    candidate_temperatures: tuple[float, ...] = (0.0, 0.1, 0.2)
+    sbfl: bool = True
+    isolation_rerun: bool = True
+    minimize_patch: bool = True
+    minimize_max_runs: int = 8
+    nano_json_mode: bool = True
 
     @classmethod
     def from_env(cls, env_file: str | Path | None = ".env") -> Settings:
@@ -152,7 +170,20 @@ class Settings:
             sandbox_cpus=_str("SANDBOX_CPUS", "1"),
             sandbox_pids=_int("SANDBOX_PIDS", 128),
             max_output_bytes=_int("MAX_OUTPUT_BYTES", 64_000),
+            candidates=max(1, _int("CANDIDATES", 3)),
+            candidate_temperatures=_floats("CANDIDATE_TEMPERATURES", (0.0, 0.1, 0.2)),
+            sbfl=_bool("SBFL", True),
+            isolation_rerun=_bool("ISOLATION_RERUN", True),
+            minimize_patch=_bool("MINIMIZE_PATCH", True),
+            minimize_max_runs=_int("MINIMIZE_MAX_RUNS", 8),
+            nano_json_mode=_bool("NANO_JSON_MODE", True),
         )
+
+    def candidate_temperature(self, index: int, count: int) -> float:
+        """Ultra temperature for candidate `index` of `count`; one candidate uses ULTRA_TEMPERATURE."""
+        if count == 1 or not self.candidate_temperatures:
+            return self.ultra.temperature
+        return self.candidate_temperatures[index % len(self.candidate_temperatures)]
 
     def require_llm(self) -> None:
         """Fail fast with an actionable message if the model config is incomplete."""

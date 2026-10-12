@@ -12,10 +12,18 @@ if TYPE_CHECKING:
     from .agent import RunResult
 
 
+def _tests_text(d: dict) -> str:
+    if d.get("timed_out"):
+        return "timed out"
+    return f"{d.get('passed')} passed / {d.get('failed')} failed / {d.get('errors')} errors"
+
+
 def _attempt_rows(events: list[Event]) -> list[str]:
     rows: dict[int, dict[str, object]] = defaultdict(
-        lambda: {"ultra": 0, "rejected": 0, "applied": "no", "tests": "-", "outcome": "-"}
+        lambda: {"ultra": 0, "rejected": 0, "candidates": "1", "applied": "no", "tests": "-",
+                 "outcome": "-"}
     )
+    candidate_runs: dict[tuple[int, int], dict] = {}
     for e in events:
         if not e.attempt:
             continue
@@ -24,23 +32,36 @@ def _attempt_rows(events: list[Event]) -> list[str]:
             row["ultra"] = int(row["ultra"]) + 1  # type: ignore[call-overload]
         elif e.type == "patch_rejected":
             row["rejected"] = int(row["rejected"]) + 1  # type: ignore[call-overload]
+        elif e.type == "candidates_ranked":
+            row["candidates"] = f"{e.data['total']} ({len(e.data['ranking'])} distinct)"
         elif e.type == "patch_applied":
-            row["applied"] = "yes"
+            row["applied"] = f"yes (#{e.data.get('candidate', 0)})"
+            chosen = candidate_runs.get((e.attempt, e.data.get("candidate", 0)))
+            if chosen:
+                row["tests"] = _tests_text(chosen)
+                row["outcome"] = "green" if chosen.get("all_passed") else "still failing"
         elif e.type == "tests_run":
-            d = e.data
-            row["tests"] = "timed out" if d.get("timed_out") else (
-                f"{d.get('passed')} passed / {d.get('failed')} failed / {d.get('errors')} errors"
-            )
-            row["outcome"] = "green" if d.get("all_passed") else "still failing"
+            if e.data.get("candidate") is not None:
+                candidate_runs[(e.attempt, e.data["candidate"])] = e.data
+                continue
+            row["tests"] = _tests_text(e.data)
+            row["outcome"] = "green" if e.data.get("all_passed") else "still failing"
         elif e.type == "patch_reverted":
             row["outcome"] = f"reverted ({e.data.get('reason')})"
-    out = ["| Attempt | Ultra calls | Rejected diffs | Applied | Tests after | Outcome |",
-           "|---|---|---|---|---|---|"]
+    out = [("| Attempt | Ultra calls | Candidates | Rejected diffs | Applied | Tests after | "
+           "Outcome |"), "|---|---|---|---|---|---|---|"]
     for n in sorted(rows):
         r = rows[n]
-        out.append(f"| {n} | {r['ultra']} | {r['rejected']} | {r['applied']} | "
-                   f"{r['tests']} | {r['outcome']} |")
+        out.append(f"| {n} | {r['ultra']} | {r['candidates']} | {r['rejected']} | "
+                   f"{r['applied']} | {r['tests']} | {r['outcome']} |")
     return out
+
+
+def _evidence(events: list[Event]) -> list[str]:
+    """One line per localization / minimization step, in run order."""
+    labels = {"isolation_check": "Isolation rerun", "sbfl": "SBFL (Ochiai)",
+              "patch_minimized": "Patch minimization"}
+    return [f"- **{labels[e.type]}:** {e.message}" for e in events if e.type in labels]
 
 
 def render_report(result: RunResult, events: list[Event], settings: Settings) -> str:
@@ -66,6 +87,8 @@ def render_report(result: RunResult, events: list[Event], settings: Settings) ->
         "",
         *_attempt_rows(events),
         "",
+        *(["## Localization and minimization", "", *_evidence(events), ""]
+          if _evidence(events) else []),
         "## Model usage",
         "",
         ("| Role | Model | Calls | Prompt tokens | Completion tokens | Total latency (s) "

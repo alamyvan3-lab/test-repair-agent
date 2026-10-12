@@ -208,3 +208,40 @@ def test_file_classification():
     assert is_test_file("pkg/test_thing.py") and is_test_file("pkg/thing_test.py")
     assert not is_test_file("pkg/testing_utils.py") and not is_test_file("pkg/contest.py")
     assert is_config_file("sub/pyproject.toml") and not is_config_file("pkg/config.py")
+
+
+def test_hunk_without_line_numbers(repo: Path):
+    bare = GOOD.replace("@@ -1,2 +1,2 @@", "@@ @@")
+    prepared = patcher.prepare(answer(bare), repo, 60)
+    assert prepared.new_contents["calc/ops.py"].startswith("def add(a, b):\n    return a + b\n")
+
+
+def test_uniform_indentation_shift_is_repaired(repo: Path):
+    (repo / "calc" / "box.py").write_text(
+        "class Box:\n    def area(self):\n        return self.w + self.h\n", encoding="utf-8")
+    flat = ("--- a/calc/box.py\n+++ b/calc/box.py\n@@ -2,2 +2,2 @@\n"
+            " def area(self):\n-    return self.w + self.h\n+    return self.w * self.h\n")
+    patcher.apply(patcher.prepare(answer(flat), repo, 60), repo)
+    assert "        return self.w * self.h\n" in (repo / "calc" / "box.py").read_text(encoding="utf-8")
+
+
+def test_syntax_error_is_rejected_before_any_test_run(repo: Path):
+    broken = GOOD.replace("+    return a + b", "+    return a +")
+    with pytest.raises(PatchError, match="does not compile: invalid syntax"):
+        patcher.prepare(answer(broken), repo, 60)
+
+
+@pytest.mark.parametrize(
+    ("added", "match"),
+    [
+        ('    if os.environ.get("PYTEST_CURRENT_TEST"): return 3', "PYTEST_CURRENT_TEST"),
+        ('    if "pytest" in sys.modules: return 3', "detects or imports pytest"),
+        ("    caller = sys._getframe(1).f_code.co_name", "inspects the call stack"),
+        ('    data = open("tests/expected.json").read()', "references test files"),
+        ("    from unittest.mock import patch", "adds mocking"),
+    ],
+)
+def test_test_gaming_code_is_rejected(repo: Path, added: str, match: str):
+    diff = GOOD.replace("+    return a + b", f"+{added}\n+    return a + b")
+    with pytest.raises(PatchError, match=match):
+        patcher.prepare(answer(diff), repo, 60)

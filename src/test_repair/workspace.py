@@ -7,6 +7,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 _IGNORE = shutil.ignore_patterns(
@@ -79,3 +80,21 @@ class Workspace:
         """Cumulative diff of the working tree against the original copy."""
         self._git("add", "-A")
         return self._git("diff", "--cached", "--no-color", self.baseline)
+
+    def modified_files(self) -> list[str]:
+        """Files that existed at the baseline and differ now (added files excluded)."""
+        self._git("add", "-A")
+        out = self._git("diff", "--cached", "--name-only", "--diff-filter=M", self.baseline)
+        return [p for p in out.splitlines() if p]
+
+    def baseline_text(self, path: str) -> str:
+        return self._git("show", f"{self.baseline}:{path}")
+
+    def variant(self, root: Path, contents: dict[str, str]) -> Path:
+        """A scratch copy of the current tree with `contents` (path -> text) written over it."""
+        target = root / uuid.uuid4().hex[:8]
+        shutil.copytree(self.path, target, ignore=shutil.ignore_patterns(".git"))
+        for rel, text in contents.items():
+            (target / rel).parent.mkdir(parents=True, exist_ok=True)
+            (target / rel).write_bytes(text.encode("utf-8"))
+        return target

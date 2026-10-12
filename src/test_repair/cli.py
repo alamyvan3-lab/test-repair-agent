@@ -1,4 +1,4 @@
-"""Command line: `test-repair run PATH`, `test-repair bench`, `test-repair serve`."""
+"""Command line: `test-repair run PATH`, `bench`, `serve`, and `doctor`."""
 
 from __future__ import annotations
 
@@ -6,27 +6,35 @@ import argparse
 import dataclasses
 import json
 import logging
+import platform
+import shutil
+import subprocess
 import sys
 import time
+import urllib.error
 from pathlib import Path
 
 from .agent import RepairAgent
 from .config import ConfigError, Settings
 from .events import Event
-from .llm import TokenFactoryClient
-from .sandbox import SandboxError, make_sandbox
+from .llm import TokenFactoryClient, list_models
+from .sandbox import DockerSandbox, SandboxError, make_sandbox
 
 _LABELS = {
     "run_started": "start",
     "tests_run": "tests",
+    "isolation_check": "isolate",
+    "sbfl": "sbfl",
     "triage": "triage",
     "diagnosis": "diagnose",
     "patch_proposed": "patch",
     "patch_rejected": "rejected",
     "sanity_check": "sanity",
+    "candidates_ranked": "rank",
     "patch_applied": "applied",
     "regression": "REGRESS",
     "patch_reverted": "revert",
+    "patch_minimized": "minimize",
     "success": "SUCCESS",
     "failure": "STOPPED",
 }
@@ -103,6 +111,51 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0 if result.status == "SUCCESS" else 1
 
 
+def doctor_checks(settings: Settings, env_file: Path = Path(".env")) -> list[tuple[str, bool, str]]:
+    """Environment checks as (name, ok, detail). Never prints the key."""
+    checks = [
+        ("Python >= 3.11", sys.version_info >= (3, 11), platform.python_version()),
+        ("git on PATH", bool(shutil.which("git")), shutil.which("git") or "not found"),
+        (".env file", env_file.is_file(),
+         "found" if env_file.is_file() else "missing: copy .env.example to .env"),
+        ("TOKEN_FACTORY_API_KEY", bool(settings.api_key),
+         "set (value hidden)" if settings.api_key else "missing"),
+        ("MODEL_ULTRA", bool(settings.ultra.model), settings.ultra.model or "missing"),
+        ("MODEL_NANO", bool(settings.nano.model), settings.nano.model or "missing"),
+    ]
+    if settings.sandbox_backend == "local":
+        checks.append(("sandbox", True, "local subprocess runner (weaker isolation)"))
+    else:
+        docker_ok = DockerSandbox.available()
+        checks.append(("Docker daemon", docker_ok, "running" if docker_ok else
+                       "not reachable: start Docker or set SANDBOX_BACKEND=local"))
+        if docker_ok:
+            image_ok = subprocess.run(
+                ["docker", "image", "inspect", settings.sandbox_image],
+                check=False, capture_output=True, timeout=30).returncode == 0
+            checks.append(("sandbox image", image_ok, settings.sandbox_image if image_ok else
+                           f"missing: docker build -t {settings.sandbox_image} sandbox/"))
+    if settings.api_key:
+        for role, cfg in (("ultra", settings.ultra), ("nano", settings.nano)):
+            try:
+                ids = {m.get("id") for m in list_models(cfg.base_url, settings.api_key)}
+            except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+                checks.append((f"{role} model listed", False, f"{cfg.base_url}: {exc}"))
+                continue
+            listed = cfg.model in ids
+            checks.append((f"{role} model listed", listed, f"{cfg.model} at {cfg.base_url}" if listed
+                           else f"{cfg.model or '(unset)'} not in /models at {cfg.base_url}; "
+                                "run scripts/hello_tokenfactory.py"))
+    return checks
+
+
+def cmd_doctor(_args: argparse.Namespace) -> int:
+    checks = doctor_checks(Settings.from_env())
+    for name, ok, detail in checks:
+        print(f"[{' OK ' if ok else 'FAIL'}] {name}: {detail}")
+    return 0 if all(ok for _, ok, _ in checks) else 1
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -133,12 +186,14 @@ def main(argv: list[str] | None = None) -> int:
     serve = sub.add_parser("serve", help="start the web UI")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
+    sub.add_parser("doctor", help="check Python, git, Docker, sandbox image, key, and models")
     args = parser.parse_args(argv)
     args.argv = argv
 
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
+    commands = {"run": cmd_run, "serve": cmd_serve, "doctor": cmd_doctor}
     try:
-        return cmd_run(args) if args.command == "run" else cmd_serve(args)
+        return commands[args.command](args)
     except (ConfigError, SandboxError) as exc:
         print(json.dumps({"error": str(exc)}) if getattr(args, "json", False) else f"error: {exc}",
               file=sys.stderr)

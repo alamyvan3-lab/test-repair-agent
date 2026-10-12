@@ -100,13 +100,16 @@
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
-const TYPES = ["run_started", "tests_run", "triage", "diagnosis", "patch_proposed", "patch_rejected",
-  "sanity_check", "patch_applied", "regression", "patch_reverted", "success", "failure"];
-const LABELS = { run_started: "Run started", triage: "Triage", diagnosis: "Diagnosis + patch",
+const TYPES = ["run_started", "tests_run", "isolation_check", "sbfl", "triage", "diagnosis",
+  "patch_proposed", "patch_rejected", "sanity_check", "candidates_ranked", "patch_applied",
+  "regression", "patch_reverted", "patch_minimized", "success", "failure"];
+const LABELS = { run_started: "Run started", isolation_check: "Isolation rerun",
+  sbfl: "Fault localization (SBFL)", triage: "Triage", diagnosis: "Diagnosis + patch",
   patch_proposed: "Diff proposed", patch_rejected: "Diff rejected", sanity_check: "Sanity check",
-  patch_applied: "Patch applied", regression: "Regression", patch_reverted: "Patch reverted",
+  candidates_ranked: "Candidates ranked", patch_applied: "Patch applied",
+  regression: "Regression", patch_reverted: "Patch reverted", patch_minimized: "Patch minimized",
   success: "Done", failure: "Stopped" };
-let demos = [], source = null, t0 = 0;
+let demos = [], source = null, t0 = 0, multiCandidate = false;
 
 function el(tag, cls, text) {
   const node = document.createElement(tag);
@@ -140,6 +143,9 @@ function render(e) {
     head.append(el("span", "label", LABELS[e.type] || e.type));
   }
   if (e.attempt) head.append(badge(`attempt ${e.attempt}`, "neutral"));
+  if (multiCandidate && e.data && e.data.candidate !== undefined && e.data.candidate !== null) {
+    head.append(badge(`candidate #${e.data.candidate}`, "neutral"));
+  }
   if (e.role) {
     head.append(badge(e.role === "ultra" ? "ULTRA" : "NANO", e.role));
     head.append(el("span", "meta", `${e.model} · ${fmtTok(e)} · ${e.latency_s.toFixed(2)}s`));
@@ -165,6 +171,25 @@ function render(e) {
     body.append(el("div", "meta",
       `compressed ${e.data.raw_output_chars} chars of pytest output to ${e.data.summary_chars} for Ultra`));
   }
+  if (e.type === "run_started") {
+    multiCandidate = (e.data.techniques || {}).candidates > 1;
+    const on = Object.entries(e.data.techniques || {})
+      .filter(([, v]) => v && v !== 1).map(([k, v]) => (v === true ? k : `${k}=${v}`));
+    if (on.length) body.append(el("div", "meta", "techniques: " + on.join(", ").replaceAll("_", " ")));
+  }
+  if (e.type === "sbfl" && e.data.top && e.data.top.length) {
+    body.append(el("pre", null, e.data.top.slice(0, 5).map((s) =>
+      `${s.score.toFixed(2)}  ${s.path}:${s.line} in ${s.function}()  ${s.source}`).join("\n")));
+  }
+  if (e.type === "isolation_check" && e.data.pass_alone.length) {
+    body.append(el("div", "meta", "pass alone: " + e.data.pass_alone.join(", ")));
+  }
+  if (e.type === "candidates_ranked") {
+    body.append(el("pre", null, e.data.ranking.map((r, i) =>
+      `${i === 0 ? "->" : "  "} #${r.candidate}  votes ${r.votes}  T=${r.temperature}  ` +
+      `${r.passed} passed, ${r.failing} failing, ${r.changed_lines} changed lines`).join("\n")));
+  }
+  if (e.type === "patch_minimized" && e.data.diff) body.append(diffView(e.data.diff));
   if (e.type === "patch_applied") body.append(diffView(e.data.diff));
   if (e.type === "patch_proposed") {
     const det = el("details");

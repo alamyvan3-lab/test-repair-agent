@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from collections.abc import Callable
 from pathlib import Path
 
@@ -60,14 +61,19 @@ class FakeLLM:
         self.nano = nano
         self.tokens = tokens
         self.calls: list[tuple[Role, Messages]] = []
+        self.kwargs: list[dict] = []
+        self._lock = threading.Lock()
 
-    def chat(self, role: Role, messages: Messages) -> LLMResult:
-        self.calls.append((role, messages))
-        if role == "ultra":
-            item = self.ultra.pop(0) if len(self.ultra) > 1 else self.ultra[0]
-            text = item(messages) if callable(item) else item
-        else:
-            text = self.nano(messages)
+    def chat(self, role: Role, messages: Messages, *, temperature: float | None = None,
+             json_mode: bool = False) -> LLMResult:
+        with self._lock:  # candidates call concurrently
+            self.calls.append((role, messages))
+            self.kwargs.append({"role": role, "temperature": temperature, "json_mode": json_mode})
+            if role == "ultra":
+                item = self.ultra.pop(0) if len(self.ultra) > 1 else self.ultra[0]
+            else:
+                item = self.nano
+        text = item(messages) if callable(item) else item
         return LLMResult(role=role, model=f"fake/{role}", text=text,
                          prompt_tokens=self.tokens[0], completion_tokens=self.tokens[1],
                          latency_s=0.01, finish_reason="stop")

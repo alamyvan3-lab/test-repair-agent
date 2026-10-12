@@ -16,8 +16,11 @@ def settings() -> Settings:
                          temperature=0.0, max_tokens=512, extra_body={},
                          price_in_per_m=1.0, price_out_per_m=3.0)
 
+    # Techniques are off here so each test sees the plain loop; test_techniques.py turns
+    # them on one at a time.
     return Settings(api_key=FAKE_KEY, ultra=role("ultra"), nano=role("nano"),
-                    sandbox_backend="local", test_timeout_s=60, max_attempts=3)
+                    sandbox_backend="local", test_timeout_s=60, max_attempts=3,
+                    candidates=1, sbfl=False, isolation_rerun=False, minimize_patch=False)
 
 
 @pytest.fixture

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import random
 import re
@@ -181,6 +182,10 @@ class NebiusJobsRunner:
             ("NANO_BASE_URL", s.nano.base_url),
             ("MAX_ATTEMPTS", str(s.max_attempts)),
             ("MAX_TOTAL_TOKENS", str(s.max_total_tokens)),
+            ("CANDIDATES", str(s.candidates)),
+            ("SBFL", str(s.sbfl).lower()),
+            ("ISOLATION_RERUN", str(s.isolation_rerun).lower()),
+            ("MINIMIZE_PATCH", str(s.minimize_patch).lower()),
             ("ULTRA_EXTRA_BODY", json.dumps(s.ultra.extra_body) if s.ultra.extra_body else ""),
             ("NANO_EXTRA_BODY", json.dumps(s.nano.extra_body) if s.nano.extra_body else ""),
         ]
@@ -325,6 +330,24 @@ def aggregate(results: list[TrialResult], settings: Settings) -> dict[str, Any]:
     return summary
 
 
+def techniques(settings: Settings) -> dict[str, Any]:
+    """Agent-mode technique switches, recorded with every result for ablations."""
+    return {
+        "candidates": settings.candidates,
+        "sbfl": settings.sbfl,
+        "isolation_rerun": settings.isolation_rerun,
+        "minimize_patch": settings.minimize_patch,
+        "sanity_check": settings.sanity_check,
+        "nano_json_mode": settings.nano_json_mode,
+    }
+
+
+def _techniques_text(t: dict[str, Any]) -> str:
+    if not t:
+        return "not recorded"
+    return ", ".join(f"{k.replace('_', ' ')}={v}" for k, v in t.items())
+
+
 def _fmt(value: Any, digits: int = 2) -> str:
     if value is None:
         return "n/a"
@@ -369,6 +392,7 @@ def render_markdown(meta: dict[str, Any], agg: dict[str, Any], results: list[Tri
         f"sandbox: {meta['sandbox']}, trials per repo: {meta['trials']}, seed: {meta['seed']}, "
         f"commit: {meta['commit']})."),
         f"Models: Ultra role `{meta['models']['ultra']}`, Nano role `{meta['models']['nano']}`.",
+        f"Agent techniques: {_techniques_text(meta.get('techniques', {}))}.",
         "All numbers below are measured by this run; none are edited by hand.",
         "",
         "## Summary",
@@ -411,7 +435,8 @@ def update_readme(readme: Path, meta: dict[str, Any], agg: dict[str, Any]) -> No
         raise ConfigError(f"{readme} has no {README_START} / {README_END} markers")
     block = (f"{README_START}\n_Measured {meta['finished_at']} with `{meta['models']['ultra']}` "
              f"(Ultra role) and `{meta['models']['nano']}` (Nano role), {meta['sandbox']} "
-             f"sandbox, {meta['trials']} trial(s) per repo. Full table: "
+             f"sandbox, {meta['trials']} trial(s) per repo; agent techniques: "
+             f"{_techniques_text(meta.get('techniques', {}))}. Full table: "
              f"[bench/results/results.md](bench/results/results.md)._\n\n"
              f"{summary_table(agg)}\n{README_END}")
     head, rest = text.split(README_START, 1)
@@ -446,9 +471,17 @@ def main(argv: list[str] | None = None) -> int:
                         help="nebius-jobs: MysteryBox selector for TOKEN_FACTORY_API_KEY")
     parser.add_argument("--platform", default="cpu-d3")
     parser.add_argument("--preset", default="4vcpu-16gb")
+    parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                        help="override a setting for this run, e.g. --set CANDIDATES=1 "
+                             "--set SBFL=false for an ablation")
     args = parser.parse_args(argv)
 
     try:
+        for item in args.set:
+            key, sep, value = item.partition("=")
+            if not sep or not re.fullmatch(r"[A-Z][A-Z0-9_]*", key) or key == "TOKEN_FACTORY_API_KEY":
+                raise ConfigError(f"--set expects KEY=VALUE for a setting, got {item!r}")
+            os.environ[key] = value  # .env is loaded with override=False, so this wins
         settings = Settings.from_env()
         if args.runner == "local":
             settings.require_llm()
@@ -491,6 +524,8 @@ def main(argv: list[str] | None = None) -> int:
         "models": {"ultra": settings.ultra.model, "nano": settings.nano.model},
         "max_attempts": settings.max_attempts,
         "max_corrections": settings.max_corrections,
+        "techniques": techniques(settings),
+        "overrides": args.set,
         "repos": [t.name for t in tasks],
     }
     agg = aggregate(results, settings)

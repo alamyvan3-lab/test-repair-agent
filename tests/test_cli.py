@@ -37,3 +37,20 @@ def test_missing_config_exits_with_message(monkeypatch, capsys, tmp_path: Path):
         monkeypatch.delenv(var, raising=False)
     assert main(["run", str(tmp_path)]) == 2
     assert "Missing TOKEN_FACTORY_API_KEY" in capsys.readouterr().err
+
+
+def test_doctor_reports_problems_without_leaking_the_key(settings, tmp_path: Path):
+    import dataclasses
+
+    from helpers import FAKE_KEY
+
+    from test_repair.cli import doctor_checks
+
+    checks = doctor_checks(dataclasses.replace(settings, sandbox_backend="local"),
+                           env_file=tmp_path / ".env")
+    status = {name: ok for name, ok, _ in checks}
+    assert status["Python >= 3.11"] and status["sandbox"]
+    assert not status[".env file"]
+    assert status["TOKEN_FACTORY_API_KEY"]  # fixture key is set...
+    assert not status["ultra model listed"]  # ...but 127.0.0.1:9 is unreachable
+    assert all(FAKE_KEY not in detail for _, _, detail in checks)

@@ -1,4 +1,10 @@
-"""The repair loop: test, triage (Nano), diagnose and patch (Ultra), validate, sanity-check, retest."""
+"""The repair loop.
+
+Per run: test; rerun failing tests on their own; SBFL over per-test coverage. Per attempt:
+Nano triage; N parallel Ultra diagnoses + diffs; validation with corrections; Nano sanity
+check; dedupe and rank candidates by real test runs; apply, retest, keep or revert. After a
+fix: shrink the patch to what the tests need.
+"""
 
 from __future__ import annotations
 
@@ -6,26 +12,34 @@ import json
 import logging
 import re
 import tempfile
+import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import asdict
 from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from . import patcher, prompts
+from . import patcher, prompts, sbfl
+from .candidates import Proposal, dedupe, rank
 from .config import RoleModel, Settings
 from .events import Event, EventLog, Status, jsonl_sink
 from .llm import ChatModel, LLMError, LLMResult, Role
 from .localize import localize
-from .patcher import PatchError, PreparedPatch
+from .minimize import Units, minimize
+from .patcher import PatchError
 from .pytest_parser import PytestReport, compact_failures, parse_pytest_output
 from .report import render_report
-from .sandbox import Sandbox, SandboxError
+from .sandbox import ExecResult, Sandbox, SandboxError
 from .workspace import Workspace, WorkspaceError, remove_tree
 
 Mode = Literal["agent", "single_shot"]
 Verdict = Literal["improved", "same", "regressed"]
+
+# Failing tests only, with long tracebacks and local variables (pytest --showlocals).
+ISOLATION_ARGS = ["-q", "--tb=long", "-l", "-p", "no:cacheprovider", "-rfE", "--color=no"]
 
 log = logging.getLogger("test_repair.agent")
 
@@ -147,9 +161,11 @@ class RepairAgent:
         self.on_event = on_event
         self.log = EventLog()
         self._usage: dict[str, RoleUsage] = {}
+        self._usage_lock = threading.Lock()
         self._t0 = 0.0
         self._test_runs = 0
         self._last_output = ""
+        self._tmp = Path()
         self._result = RunResult(repo="", mode="agent", status="ERROR", message="")
 
     # -- public ---------------------------------------------------------------
@@ -174,18 +190,27 @@ class RepairAgent:
                            sandbox=self.sandbox.name)
         self._result = result
 
+        single = mode == "single_shot"
         self.log.emit(
             "run_started",
             f"Repairing {repo.name} ({mode.replace('_', '-')} mode, sandbox: {self.sandbox.name})",
             data={
                 "repo": repo.name,
                 "mode": mode,
-                "max_attempts": 1 if mode == "single_shot" else s.max_attempts,
+                "max_attempts": 1 if single else s.max_attempts,
                 "models": {"ultra": s.ultra.model, "nano": s.nano.model},
                 "sandbox": self.sandbox.name,
+                "techniques": {
+                    "candidates": 1 if single else s.candidates,
+                    "sbfl": s.sbfl and not single,
+                    "isolation_rerun": s.isolation_rerun and not single,
+                    "minimize_patch": s.minimize_patch and not single,
+                    "sanity_check": s.sanity_check and not single,
+                },
             },
         )
         tmp = Path(tempfile.mkdtemp(prefix="test-repair-"))
+        self._tmp = tmp
         workspace: Workspace | None = None
         try:
             workspace = Workspace(repo, tmp)
@@ -237,41 +262,44 @@ class RepairAgent:
             )
 
         single = mode == "single_shot"
+        pass_alone = self._isolation_check(ws, report) if s.isolation_rerun and not single else []
+        spectra = self._sbfl(ws, report, attempt=0) if s.sbfl and not single else []
         max_attempts = 1 if single else s.max_attempts
         history: list[prompts.AttemptRecord] = []
         for attempt in range(1, max_attempts + 1):
             result.attempts = attempt
             failures = compact_failures(report)
             triage = None if single else self._triage(attempt)
-            suspects = localize(report, ws.path, s.top_k_files, s.max_file_chars)
+            suspects = localize(report, ws.path, s.top_k_files, s.max_file_chars, spectra)
             messages = prompts.repair_messages(
                 repo=ws.source.name, attempt=attempt, max_attempts=max_attempts,
                 max_lines=s.max_diff_lines, failures=failures, triage=triage,
-                suspects=suspects, history=history,
+                suspects=suspects, history=history, spectra=spectra, pass_alone=pass_alone,
             )
-            prepared, diagnosis, diff, error = self._propose(
+            proposals = self._propose_all(
                 messages, ws, attempt, failures,
+                count=1 if single else s.candidates,
                 corrections=0 if single else s.max_corrections,
                 sanity=s.sanity_check and not single,
             )
-            result.diagnosis = diagnosis or result.diagnosis
-            if prepared is None:
-                history.append(prompts.AttemptRecord(attempt, diagnosis, diff, "rejected", error))
+            distinct = dedupe(proposals)
+            if not distinct:
+                diagnosis = next((p.diagnosis for p in proposals if p.diagnosis), "")
+                result.diagnosis = diagnosis or result.diagnosis
+                errors = "; ".join(p.error for p in proposals if p.error)
+                history.append(prompts.AttemptRecord(
+                    attempt, diagnosis, proposals[0].diff, "rejected", errors))
                 continue
 
-            patcher.apply(prepared, ws.path)
-            self.log.emit(
-                "patch_applied",
-                f"Applied patch to {', '.join(prepared.files)} "
-                f"({prepared.changed_lines} changed lines)",
-                attempt=attempt,
-                data={"diff": prepared.diff, "files": prepared.files},
-            )
             kept_output = self._last_output
-            new = self._run_tests(ws, attempt)
+            chosen, new = self._choose(ws, distinct, attempt, len(proposals))
+            result.diagnosis = chosen.diagnosis or result.diagnosis
+            assert chosen.prepared is not None
             if new.all_passed:
                 ws.commit(f"attempt {attempt}")
                 result.final = SuiteCounts.of(new)
+                if s.minimize_patch and not single:
+                    self._minimize(ws, attempt)
                 return "SUCCESS", f"All tests pass after {attempt} attempt(s)."
 
             verdict = compare(report, new)
@@ -292,31 +320,40 @@ class RepairAgent:
                 self.log.emit("patch_reverted", f"Reverted attempt {attempt} ({outcome})",
                               attempt=attempt, data={"reason": outcome})
                 history.append(prompts.AttemptRecord(
-                    attempt, diagnosis, prepared.diff, f"{outcome}; patch reverted", detail))
+                    attempt, chosen.diagnosis, chosen.prepared.diff,
+                    f"{outcome}; patch reverted", detail))
                 continue
 
             ws.commit(f"attempt {attempt}")
             kept = "improved" if verdict == "improved" else "failures changed"
             history.append(prompts.AttemptRecord(
-                attempt, diagnosis, prepared.diff, f"{kept}; patch kept", detail))
+                attempt, chosen.diagnosis, chosen.prepared.diff, f"{kept}; patch kept", detail))
             report = new
             result.final = SuiteCounts.of(new)
+            if s.sbfl and not single:
+                spectra = self._sbfl(ws, report, attempt)
 
         return "EXHAUSTED", f"Tests still failing after {max_attempts} attempt(s)."
 
-    # -- steps ----------------------------------------------------------------
+    # -- tests ----------------------------------------------------------------
 
     def _run_tests(self, ws: Workspace, attempt: int) -> PytestReport:
         self._check_budget()
         res = self.sandbox.run_pytest(ws.path)
         self._test_runs += 1
         self._last_output = res.output
+        return self._record_tests(res, attempt)
+
+    def _record_tests(self, res: ExecResult, attempt: int,
+                      candidate: int | None = None) -> PytestReport:
         report = parse_pytest_output(res.output, res.exit_code, res.timed_out)
         if res.timed_out:
             message = f"Tests timed out after {self.settings.test_timeout_s}s"
         else:
             message = (f"Tests: {report.passed} passed, {report.failed} failed, "
                        f"{report.errors} errors ({res.duration_s:.2f}s)")
+        if candidate is not None:
+            message = f"Candidate #{candidate}: {message}"
         self.log.emit(
             "tests_run",
             message,
@@ -333,23 +370,200 @@ class RepairAgent:
                 "summary": report.summary,
                 "output_tail": res.output[-3000:],
                 "truncated": res.truncated,
+                "candidate": candidate,
             },
         )
         return report
 
-    def _call(self, role: Role, messages: list[dict[str, str]]) -> LLMResult:
-        res = self.llm.chat(role, messages)
-        usage = self._usage[role]
-        usage.model = res.model
-        usage.calls += 1
-        usage.prompt_tokens += res.prompt_tokens
-        usage.completion_tokens += res.completion_tokens
-        usage.latency_s = round(usage.latency_s + res.latency_s, 3)
+    def _isolation_check(self, ws: Workspace, report: PytestReport) -> list[str]:
+        """Rerun only the failing tests (long tracebacks + locals). Tests that now pass hint
+        at shared state between tests; the richer output also feeds the first triage."""
+        ids = [f.test_id for f in report.failures if "::" in f.test_id][:20]
+        if not ids or report.timed_out:
+            return []
+        self._check_budget()
+        res = self.sandbox.run_pytest(ws.path, [*ISOLATION_ARGS, *ids])
+        self._test_runs += 1
+        iso = parse_pytest_output(res.output, res.exit_code, res.timed_out)
+        alone: list[str] = []
+        if not res.timed_out and iso.passed + iso.bad > 0:
+            still = set(iso.failing_ids())
+            alone = [t for t in ids if t not in still]
+        if iso.failures:
+            self._last_output = res.output
+        message = (f"{len(alone)} of {len(ids)} failing tests pass without the rest of the "
+                   "suite: likely shared state between tests" if alone else
+                   f"All {len(ids)} failing tests also fail when rerun on their own")
+        self.log.emit("isolation_check", message, attempt=0, data={
+            "rerun": ids, "pass_alone": alone, "duration_s": res.duration_s,
+            "output_tail": res.output[-3000:],
+        })
+        return alone
+
+    def _sbfl(self, ws: Workspace, report: PytestReport, attempt: int) -> list[sbfl.Suspicious]:
+        """Spectrum-based fault localization over per-test line coverage."""
+        if report.failed == 0 or report.timed_out:
+            return []
+        self._check_budget()
+        res = self.sandbox.run_pytest(ws.path, sbfl.PYTEST_ARGS,
+                                      {f"{sbfl.PLUGIN_MODULE}.py": sbfl.PLUGIN_SOURCE})
+        self._test_runs += 1
+        ranked = sbfl.rank(res.output, ws.path)
+        if ranked:
+            top = ranked[0]
+            message = (f"Most suspicious: {top.path}:{top.line} in {top.function}() "
+                       f"(Ochiai {top.score})")
+        else:
+            message = "No coverage spectrum available; continuing without SBFL"
+        self.log.emit("sbfl", message, attempt=attempt,
+                      data={"top": [asdict(x) for x in ranked], "duration_s": res.duration_s})
+        return ranked
+
+    # -- candidates -----------------------------------------------------------
+
+    def _propose_all(self, messages: list[dict[str, str]], ws: Workspace, attempt: int,
+                     failures: str, count: int, corrections: int,
+                     sanity: bool) -> list[Proposal]:
+        """`count` independent Ultra proposals, requested concurrently."""
+        if count == 1:
+            return [self._propose(list(messages), ws, attempt, failures, corrections, sanity,
+                                  index=0, count=1)]
+        with ThreadPoolExecutor(count) as pool:
+            futures = [pool.submit(self._propose, list(messages), ws, attempt, failures,
+                                   corrections, sanity, i, count) for i in range(count)]
+            return [f.result() for f in futures]
+
+    def _choose(self, ws: Workspace, distinct: list[Proposal], attempt: int,
+                total: int) -> tuple[Proposal, PytestReport]:
+        """Apply the best distinct proposal to the workspace and return it with its tests."""
+        if len(distinct) == 1:
+            chosen = distinct[0]
+            self._apply(ws, chosen, attempt)
+            chosen.report = self._run_tests(ws, attempt)
+            if total > 1:
+                self._emit_ranking([chosen], attempt, total)
+            return chosen, chosen.report
+
+        self._check_budget()
+
+        def evaluate(p: Proposal) -> ExecResult:
+            assert p.prepared is not None
+            path = ws.variant(self._tmp / "variants", p.prepared.new_contents)
+            try:
+                return self.sandbox.run_pytest(path)
+            finally:
+                remove_tree(path)
+
+        with ThreadPoolExecutor(len(distinct)) as pool:
+            results = list(pool.map(evaluate, distinct))
+        outputs = {}
+        for p, res in zip(distinct, results, strict=True):
+            self._test_runs += 1
+            p.report = self._record_tests(res, attempt, candidate=p.index)
+            outputs[p.index] = res.output
+        ranked = rank(distinct)
+        chosen = ranked[0]
+        self._emit_ranking(ranked, attempt, total)
+        self._apply(ws, chosen, attempt)
+        self._last_output = outputs[chosen.index]
+        assert chosen.report is not None
+        return chosen, chosen.report
+
+    def _apply(self, ws: Workspace, p: Proposal, attempt: int) -> None:
+        assert p.prepared is not None
+        patcher.apply(p.prepared, ws.path)
+        self.log.emit(
+            "patch_applied",
+            f"Applied patch to {', '.join(p.prepared.files)} "
+            f"({p.prepared.changed_lines} changed lines)",
+            attempt=attempt,
+            data={"diff": p.prepared.diff, "files": p.prepared.files,
+                  "candidate": p.index, "votes": p.votes},
+        )
+
+    def _emit_ranking(self, ranked: list[Proposal], attempt: int, total: int) -> None:
+        rows = []
+        for p in ranked:
+            assert p.report is not None and p.prepared is not None
+            rows.append({"candidate": p.index, "votes": p.votes, "temperature": p.temperature,
+                         "passed": p.report.passed, "failing": p.report.bad,
+                         "all_passed": p.report.all_passed,
+                         "changed_lines": p.prepared.changed_lines})
+        best = rows[0]
+        self.log.emit(
+            "candidates_ranked",
+            f"{total} candidates, {len(ranked)} distinct: chose #{best['candidate']} "
+            f"({best['passed']} passed, {best['failing']} failing, {best['votes']} vote(s))",
+            attempt=attempt,
+            data={"ranking": rows, "chosen": best["candidate"], "total": total},
+        )
+
+    # -- minimization ---------------------------------------------------------
+
+    def _minimize(self, ws: Workspace, attempt: int) -> None:
+        """Drop change regions the tests do not need; keep the original fix on any doubt."""
+        try:
+            paths = ws.modified_files()
+            before = {p: ws.baseline_text(p) for p in paths}
+            after = {p: (ws.path / p).read_bytes().decode("utf-8", "replace") for p in paths}
+            units = Units.of(before, after)
+            if units.count < 2:
+                return
+            executed = 0
+
+            def passes(contents: dict[str, str]) -> bool:
+                nonlocal executed
+                try:
+                    self._check_budget()
+                except BudgetExceeded:
+                    return False  # out of budget: keep the remaining regions
+                path = ws.variant(self._tmp / "variants", contents)
+                try:
+                    res = self.sandbox.run_pytest(path)
+                finally:
+                    remove_tree(path)
+                executed += 1
+                self._test_runs += 1
+                return parse_pytest_output(res.output, res.exit_code, res.timed_out).all_passed
+
+            removed, _ = minimize(units, passes, self.settings.minimize_max_runs)
+            if removed:
+                for p, text in units.build(removed).items():
+                    (ws.path / p).write_bytes(text.encode("utf-8"))
+                if not self._run_tests(ws, attempt).all_passed:  # confirm on the real tree
+                    ws.revert()
+                    removed = set()
+                else:
+                    ws.commit("minimized")
+            message = (f"Removed {len(removed)} of {units.count} change regions the tests do "
+                       f"not need ({executed} test runs)" if removed else
+                       f"All {units.count} change regions are needed ({executed} test runs)")
+            self.log.emit("patch_minimized", message, attempt=attempt, data={
+                "regions": units.count, "removed": len(removed), "runs": executed,
+                "diff": ws.diff() if removed else "",
+            })
+        except (SandboxError, WorkspaceError, BudgetExceeded) as exc:
+            log.warning("patch minimization skipped: %s", exc)
+            ws.revert()
+
+    # -- model calls ----------------------------------------------------------
+
+    def _call(self, role: Role, messages: list[dict[str, str]], *,
+              temperature: float | None = None, json_mode: bool = False) -> LLMResult:
+        res = self.llm.chat(role, messages, temperature=temperature, json_mode=json_mode)
+        with self._usage_lock:
+            usage = self._usage[role]
+            usage.model = res.model
+            usage.calls += 1
+            usage.prompt_tokens += res.prompt_tokens
+            usage.completion_tokens += res.completion_tokens
+            usage.latency_s = round(usage.latency_s + res.latency_s, 3)
         return res
 
     def _check_budget(self) -> None:
         s = self.settings
-        total = sum(u.total_tokens for u in self._usage.values())
+        with self._usage_lock:
+            total = sum(u.total_tokens for u in self._usage.values())
         if total > s.max_total_tokens:
             raise BudgetExceeded(
                 f"Token budget exceeded: {total} tokens used, limit {s.max_total_tokens} "
@@ -364,7 +578,8 @@ class RepairAgent:
 
     def _triage(self, attempt: int) -> str:
         raw = self._last_output
-        res = self._call("nano", prompts.triage_messages(_clip(raw, self.settings.max_triage_chars)))
+        res = self._call("nano", prompts.triage_messages(_clip(raw, self.settings.max_triage_chars)),
+                         json_mode=self.settings.nano_json_mode)
         parsed = parse_json_object(res.text)
         if parsed:
             raw_lines = parsed.get("key_lines")
@@ -403,49 +618,56 @@ class RepairAgent:
         failures: str,
         corrections: int,
         sanity: bool,
-    ) -> tuple[PreparedPatch | None, str, str, str]:
+        index: int,
+        count: int,
+    ) -> Proposal:
         """Ask Ultra for a diff; feed validation/sanity errors back up to `corrections` times."""
+        temperature = self.settings.candidate_temperature(index, count)
+        tag = {"correction": 0, "candidate": index}
         diagnosis = diff = error = ""
         for round_ in range(corrections + 1):
-            res = self._call("ultra", messages)
+            tag["correction"] = round_
+            res = self._call("ultra", messages, temperature=temperature)
             diagnosis = parse_diagnosis(res.text)
             self.log.emit(
                 "diagnosis",
                 diagnosis or "(no diagnosis given)",
                 attempt=attempt,
                 **_llm_fields(res),
-                data={"correction": round_, "finish_reason": res.finish_reason},
+                data={**tag, "finish_reason": res.finish_reason, "temperature": temperature},
             )
             self._check_budget()
             try:
                 diff = patcher.extract_diff(res.text)
                 self.log.emit("patch_proposed", "Ultra proposed a diff", attempt=attempt,
-                              data={"diff": diff, "correction": round_})
+                              data={**tag, "diff": diff})
                 prepared = patcher.prepare(res.text, ws.path, self.settings.max_diff_lines)
             except PatchError as exc:
                 error = str(exc)
                 self.log.emit("patch_rejected", error, attempt=attempt,
-                              data={"stage": "validation", "correction": round_})
+                              data={**tag, "stage": "validation"})
                 messages = [*messages, {"role": "assistant", "content": res.text},
                             {"role": "user", "content": prompts.CORRECTION.format(error=error)}]
                 continue
             diff = prepared.diff
             if sanity:
-                verdict, reason = self._sanity(diagnosis, failures, prepared.diff, attempt)
+                verdict, reason = self._sanity(diagnosis, failures, prepared.diff, attempt, index)
                 if verdict == "special_case":
                     error = f"Rejected by sanity check: {reason}"
                     self.log.emit("patch_rejected", error, attempt=attempt,
-                                  data={"stage": "sanity", "correction": round_})
+                                  data={**tag, "stage": "sanity"})
                     messages = [
                         *messages, {"role": "assistant", "content": res.text},
                         {"role": "user", "content": prompts.SANITY_CORRECTION.format(reason=reason)},
                     ]
                     continue
-            return prepared, diagnosis, diff, ""
-        return None, diagnosis, diff, error
+            return Proposal(index, temperature, prepared, diagnosis, diff, "")
+        return Proposal(index, temperature, None, diagnosis, diff, error)
 
-    def _sanity(self, diagnosis: str, failures: str, diff: str, attempt: int) -> tuple[str, str]:
-        res = self._call("nano", prompts.sanity_messages(diagnosis, failures, diff))
+    def _sanity(self, diagnosis: str, failures: str, diff: str, attempt: int,
+                candidate: int) -> tuple[str, str]:
+        res = self._call("nano", prompts.sanity_messages(diagnosis, failures, diff),
+                         json_mode=self.settings.nano_json_mode)
         parsed = parse_json_object(res.text) or {}
         verdict = parsed.get("verdict")
         if verdict not in {"ok", "special_case", "unrelated"}:
@@ -456,7 +678,7 @@ class RepairAgent:
             f"Sanity check: {verdict}" + (f" - {reason}" if reason else ""),
             attempt=attempt,
             **_llm_fields(res),
-            data={"verdict": verdict, "reason": reason},
+            data={"verdict": verdict, "reason": reason, "candidate": candidate},
         )
         self._check_budget()
         return verdict, reason
