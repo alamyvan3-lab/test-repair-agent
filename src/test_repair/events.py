@@ -98,10 +98,10 @@ class EventLog:
 def jsonl_sink(path: Path) -> Callable[[Event], None]:
     """Append each event as one JSON line."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("", encoding="utf-8")
+    path.write_text("", encoding="utf-8", newline="\n")
 
     def write(event: Event) -> None:
-        with path.open("a", encoding="utf-8") as fh:
+        with path.open("a", encoding="utf-8", newline="\n") as fh:
             fh.write(json.dumps(event.model_dump(), ensure_ascii=False) + "\n")
 
     return write

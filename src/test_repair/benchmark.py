@@ -57,6 +57,8 @@ class TrialResult(BaseModel):
     wall_time_s: float = 0.0
     test_runs: int = 0
     usage: dict[str, RoleUsage] = Field(default_factory=dict)
+    triage_input_chars: int = 0
+    triage_summary_chars: int = 0
 
 
 def load_tasks(bench_dir: Path, names: list[str] | None = None) -> list[Task]:
@@ -106,6 +108,8 @@ class LocalRunner:
             repo=task.name, category=task.category, mode=mode, trial=trial,
             status=res.status, message=res.message, attempts=res.attempts,
             wall_time_s=res.wall_time_s, test_runs=res.test_runs, usage=res.usage,
+            triage_input_chars=res.triage_input_chars,
+            triage_summary_chars=res.triage_summary_chars,
         )
         print(f"{task.name:<28} {mode:<12} t{trial} {res.status:<18} attempts={res.attempts} "
               f"wall={res.wall_time_s:.1f}s", flush=True)
@@ -315,6 +319,8 @@ def aggregate(results: list[TrialResult], settings: Settings) -> dict[str, Any]:
             "total_tokens": sum(v["prompt_tokens"] + v["completion_tokens"] for v in roles.values()),
             "total_cost_usd": None if total_cost is None else round(total_cost, 6),
             "total_wall_time_s": round(sum(r.wall_time_s for r in rows), 2),
+            "triage_input_chars": sum(r.triage_input_chars for r in rows),
+            "triage_summary_chars": sum(r.triage_summary_chars for r in rows),
         }
     return summary
 
@@ -344,6 +350,14 @@ def summary_table(agg: dict[str, Any]) -> str:
             f"{_fmt(u['mean_latency_per_call_s'])}s | {_fmt(n['mean_latency_per_call_s'])}s | "
             f"{_fmt(m['total_cost_usd'], 4)} | {m['total_wall_time_s']:.1f}s |"
         )
+    for mode, m in agg.items():
+        raw, short = m["triage_input_chars"], m["triage_summary_chars"]
+        if raw:
+            lines.append(
+                f"\nNano triage ({mode.replace('_', '-')}): {raw:,} chars of raw pytest output "
+                f"were condensed to {short:,} chars of summary for Ultra "
+                f"({(1 - short / raw) * 100:.0f}% smaller)."
+            )
     return "\n".join(lines)
 
 
@@ -401,7 +415,7 @@ def update_readme(readme: Path, meta: dict[str, Any], agg: dict[str, Any]) -> No
              f"[bench/results/results.md](bench/results/results.md)._\n\n"
              f"{summary_table(agg)}\n{README_END}")
     head, rest = text.split(README_START, 1)
-    readme.write_text(head + block + rest.split(README_END, 1)[1], encoding="utf-8")
+    readme.write_text(head + block + rest.split(README_END, 1)[1], encoding="utf-8", newline="\n")
 
 
 def _commit() -> str:
@@ -484,8 +498,8 @@ def main(argv: list[str] | None = None) -> int:
         out.mkdir(parents=True, exist_ok=True)
         (out / "results.json").write_text(json.dumps(
             {"meta": meta, "aggregate": agg, "trials": [r.model_dump() for r in results]},
-            indent=2), encoding="utf-8")
-        (out / "results.md").write_text(render_markdown(meta, agg, results), encoding="utf-8")
+            indent=2), encoding="utf-8", newline="\n")
+        (out / "results.md").write_text(render_markdown(meta, agg, results), encoding="utf-8", newline="\n")
         if args.readme:
             update_readme(Path(args.readme), meta, agg)
         print(f"\n{summary_table(agg)}\n\nWrote {out / 'results.json'} and {out / 'results.md'}")

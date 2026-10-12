@@ -186,6 +186,15 @@ def _demo_repos(demo_dirs: list[Path]) -> dict[str, Path]:
     return repos
 
 
+def _project_path(rel: str) -> Path:
+    """Resolve a project-relative path from the CWD, else from a source checkout."""
+    path = Path(rel)
+    if path.is_absolute() or path.exists():
+        return path
+    checkout = Path(__file__).resolve().parents[2] / rel
+    return checkout if checkout.exists() else path
+
+
 def _description(repo: Path) -> str:
     readme = repo / "README.md"
     if readme.is_file():
@@ -207,8 +216,9 @@ def create_app(
     settings = settings or Settings.from_env()
     server = server or ServerSettings.from_env()
     if demo_dirs is None:
-        demo_dirs = [Path(p) for p in os.environ.get("DEMO_DIRS", "examples,bench/repos").split(",")]
-    web_dir = web_dir or Path(os.environ.get("WEB_DIR", "web"))
+        demo_dirs = [_project_path(p.strip())
+                     for p in os.environ.get("DEMO_DIRS", "examples,bench/repos").split(",")]
+    web_dir = web_dir or _project_path(os.environ.get("WEB_DIR", "web"))
     demos = _demo_repos(demo_dirs)
     manager = RunManager(settings, server, llm_factory or TokenFactoryClient,
                          sandbox_factory or make_sandbox)

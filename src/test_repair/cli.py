@@ -49,14 +49,29 @@ def format_event(event: Event, t0: float) -> str:
     return line
 
 
-def _printer(as_json: bool):  # type: ignore[no-untyped-def]
+def _printer(as_json: bool, transcript: list[str]):  # type: ignore[no-untyped-def]
     t0 = time.time()
 
     def emit(event: Event) -> None:
-        text = event.model_dump_json() if as_json else format_event(event, t0)
-        print(text, flush=True)
+        line = format_event(event, t0)
+        transcript.append(line)
+        print(event.model_dump_json() if as_json else line, flush=True)
 
     return emit
+
+
+def _save_markdown(path: Path, argv: list[str], transcript: list[str], report: str) -> None:
+    """Write a shareable log of a run: command, streamed progress, and the final report."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    log = "\n".join(transcript)
+    path.write_text(
+        "# Example run\n\n"
+        f"Recorded {time.strftime('%Y-%m-%d %H:%M %Z')} with real Token Factory calls.\n\n"
+        f"```\n$ test-repair {' '.join(argv)}\n{log}\n```\n\n"
+        + report.replace("# Test-Repair report", "## Report", 1),
+        encoding="utf-8",
+        newline="\n",
+    )
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -72,9 +87,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     if not repo.is_dir():
         raise ConfigError(f"{repo} is not a directory")
     out = Path(args.out) if args.out else Path("runs") / f"{repo.name}-{time.strftime('%Y%m%d-%H%M%S')}"
+    transcript: list[str] = []
     agent = RepairAgent(settings, TokenFactoryClient(settings), make_sandbox(settings),
-                        on_event=_printer(args.json))
+                        on_event=_printer(args.json, transcript))
     result = agent.run(repo, out, mode="single_shot" if args.single_shot else "agent")
+    if args.save_md:
+        _save_markdown(Path(args.save_md), args.argv, transcript,
+                       (out / "report.md").read_text(encoding="utf-8"))
     if not args.json:
         print(f"\n{result.status}: {result.message}")
         for role, u in result.usage.items():
@@ -109,11 +128,13 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--single-shot", action="store_true",
                      help="baseline: one Ultra call, no loop, no triage")
     run.add_argument("--json", action="store_true", help="print raw JSON events")
+    run.add_argument("--save-md", help="also write the progress log + report to this .md file")
     sub.add_parser("bench", help="run the benchmark (see `test-repair bench --help`)")
     serve = sub.add_parser("serve", help="start the web UI")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
     args = parser.parse_args(argv)
+    args.argv = argv
 
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
     try:

@@ -81,6 +81,8 @@ class RunResult(BaseModel):
     wall_time_s: float = 0.0
     test_runs: int = 0
     sandbox: str = ""
+    triage_input_chars: int = 0  # raw pytest output Nano read
+    triage_summary_chars: int = 0  # what Ultra received from Nano instead
 
 
 def compare(before: PytestReport, after: PytestReport) -> Verdict:
@@ -148,6 +150,7 @@ class RepairAgent:
         self._t0 = 0.0
         self._test_runs = 0
         self._last_output = ""
+        self._result = RunResult(repo="", mode="agent", status="ERROR", message="")
 
     # -- public ---------------------------------------------------------------
 
@@ -169,6 +172,7 @@ class RepairAgent:
         self._test_runs = 0
         result = RunResult(repo=repo.name, mode=mode, status="ERROR", message="",
                            sandbox=self.sandbox.name)
+        self._result = result
 
         self.log.emit(
             "run_started",
@@ -212,9 +216,9 @@ class RepairAgent:
             data=result.model_dump(),
         )
         if out_dir is not None:
-            (out_dir / "repair.patch").write_text(result.patch, encoding="utf-8")
+            (out_dir / "repair.patch").write_text(result.patch, encoding="utf-8", newline="\n")
             (out_dir / "report.md").write_text(
-                render_report(result, self.log.events, s), encoding="utf-8"
+                render_report(result, self.log.events, s), encoding="utf-8", newline="\n"
             )
         return result
 
@@ -361,7 +365,8 @@ class RepairAgent:
         res = self._call("nano", prompts.triage_messages(_clip(raw, self.settings.max_triage_chars)))
         parsed = parse_json_object(res.text)
         if parsed:
-            key_lines = [str(x)[:300] for x in parsed.get("key_lines", [])][:8]
+            raw_lines = parsed.get("key_lines")
+            key_lines = [str(x)[:300] for x in raw_lines][:8] if isinstance(raw_lines, list) else []
             summary = (
                 f"error_class: {parsed.get('error_class', '?')}\n"
                 f"summary: {parsed.get('summary', '')}\n"
@@ -383,6 +388,8 @@ class RepairAgent:
                 "summary_chars": len(summary),
             },
         )
+        self._result.triage_input_chars += len(raw)
+        self._result.triage_summary_chars += len(summary)
         self._check_budget()
         return summary
 

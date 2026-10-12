@@ -48,12 +48,14 @@ class Workspace:
         self.baseline = ""
 
     def _git(self, *args: str) -> str:
+        # Bytes, decoded by hand: text mode would turn CRLF in diffs into LF.
         proc = subprocess.run(
-            [*_GIT, *args], cwd=self.path, check=False, capture_output=True, text=True, timeout=120
+            [*_GIT, *args], cwd=self.path, check=False, capture_output=True, timeout=120
         )
         if proc.returncode != 0:
-            raise WorkspaceError(f"git {args[0]} failed: {proc.stderr.strip()[:500]}")
-        return proc.stdout
+            stderr = proc.stderr.decode("utf-8", "replace").strip()
+            raise WorkspaceError(f"git {args[0]} failed: {stderr[:500]}")
+        return proc.stdout.decode("utf-8", "replace")
 
     def init(self) -> None:
         if not self.source.is_dir():

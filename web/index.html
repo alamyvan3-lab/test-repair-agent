@@ -29,7 +29,7 @@
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
   .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   select, button, input[type=file] { font: inherit; }
-  select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+  select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); max-width: 100%;
            background: var(--panel); color: var(--text); min-width: 240px; }
   button { padding: 8px 16px; border-radius: 8px; border: 0; background: var(--text);
            color: var(--bg); cursor: pointer; font-weight: 600; }
@@ -45,12 +45,12 @@
   .warn { background: var(--amber-bg); color: var(--amber); }
   .neutral { background: var(--code-bg); color: var(--muted); }
   #timeline { list-style: none; padding: 0; margin: 20px 0 0; }
-  #timeline li { display: grid; grid-template-columns: 64px 1fr; gap: 12px; padding: 10px 0;
+  #timeline li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; padding: 10px 0;
                  border-bottom: 1px solid var(--line); }
   .t { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; padding-top: 2px; }
   .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .label { font-weight: 600; }
-  .meta { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .meta { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .msg { margin-top: 4px; overflow-wrap: anywhere; }
   pre { background: var(--code-bg); border-radius: 8px; padding: 10px; margin: 8px 0 0;
         overflow-x: auto; font: 12.5px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
