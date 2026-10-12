@@ -82,6 +82,20 @@ def test_context_mismatch_gives_precise_error(repo: Path):
         patcher.prepare(answer(bad), repo, 60)
 
 
+def test_repeated_file_header_merges_hunks(repo: Path):
+    second = """\
+--- a/calc/ops.py
++++ b/calc/ops.py
+@@ -5,2 +5,2 @@
+ def mul(a, b):
+-    return a * b
++    return b * a
+"""
+    patcher.apply(patcher.prepare(answer(GOOD + second), repo, 60), repo)
+    text = (repo / "calc" / "ops.py").read_text(encoding="utf-8")
+    assert "return a + b" in text and "return b * a" in text
+
+
 def test_new_file_is_allowed(repo: Path):
     diff = "--- /dev/null\n+++ b/calc/extra.py\n@@ -0,0 +1,2 @@\n+def neg(a):\n+    return -a\n"
     patcher.apply(patcher.prepare(answer(diff), repo, 60), repo)

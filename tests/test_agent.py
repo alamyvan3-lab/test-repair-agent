@@ -116,6 +116,15 @@ def test_regression_is_reverted_and_reported(settings: Settings, tmp_path: Path)
     assert "regressed; patch reverted" in second_prompt
 
 
+def test_triage_after_revert_sees_restored_state(settings: Settings, tmp_path: Path):
+    llm = FakeLLM([ultra_answer(BREAKING), ultra_answer(reference_fix("demo_invoice"))])
+    run(settings, llm, DEMO, tmp_path)
+    triage_inputs = [m[1]["content"] for role, m in llm.calls
+                     if role == "nano" and "You triage" in m[0]["content"]]
+    assert len(triage_inputs) == 2
+    assert "5 passed" in triage_inputs[1]  # baseline state, not the regressed "1 passed"
+
+
 def test_no_effect_patch_is_reverted(settings: Settings, tmp_path: Path):
     llm = FakeLLM([ultra_answer(NO_EFFECT), ultra_answer(reference_fix("demo_invoice"))])
     result, events = run(settings, llm, DEMO, tmp_path)

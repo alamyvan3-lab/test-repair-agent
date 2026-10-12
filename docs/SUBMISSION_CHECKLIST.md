@@ -18,7 +18,7 @@
 | Demo video script (≤ 3 min) | `docs/DEMO_SCRIPT.md` | Done; fill the numbers from results.md |
 | Example red-to-green run with real calls | `docs/example_run.md` | **To do: `test-repair run examples/demo_invoice --save-md docs/example_run.md`** |
 | Benchmark with real results and a single-shot baseline | `bench/results/results.md` | **To do: run the benchmark** |
-| Unit and guardrail tests pass | `pytest` | 120 passed, 22 skipped (Docker/live) on the build machine |
+| Unit and guardrail tests pass | `pytest` | 122 passed, 22 skipped (Docker/live) on the build machine and in a fresh clone |
 
 ## Only you can do these
 

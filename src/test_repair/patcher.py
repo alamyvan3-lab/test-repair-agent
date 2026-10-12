@@ -136,11 +136,12 @@ def parse_diff(diff: str) -> list[FilePatch]:
                 "changes are not allowed. Only edit existing text files or add new ones."
             )
         if _is_file_header(lines, i):
-            current = FilePatch(
-                old_path=_parse_path(line[4:], "a/"),
-                new_path=_parse_path(lines[i + 1][4:], "b/"),
-            )
-            files.append(current)
+            old, new = _parse_path(line[4:], "a/"), _parse_path(lines[i + 1][4:], "b/")
+            # a repeated header for the same file continues that file's hunks
+            current = next((f for f in files if (f.old_path, f.new_path) == (old, new)), None)
+            if current is None:
+                current = FilePatch(old_path=old, new_path=new)
+                files.append(current)
             i += 2
             continue
         if line.startswith("@@"):

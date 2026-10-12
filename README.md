@@ -12,7 +12,7 @@ diagnoses the fault and writes the patch. A small model (Nano role) triages test
 sanity-checks each patch. The output is a `repair.patch`, a plain-language explanation, and
 a full event log. You can watch every step live in a web UI.
 
-> **Verification status (2026-10-12).** The code, the 120 offline tests, and the guardrail
+> **Verification status (2026-10-12).** The code, the 122 offline tests, and the guardrail
 > tests are verified. These tests use a scripted fake model and the local subprocess
 > sandbox. **Not yet run:** real Token Factory calls (no API key was available while
 > building), the Docker sandbox tests (Docker was not installed on the build machine), the

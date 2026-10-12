@@ -267,6 +267,7 @@ class RepairAgent:
                 attempt=attempt,
                 data={"diff": prepared.diff, "files": prepared.files},
             )
+            kept_output = self._last_output
             new = self._run_tests(ws, attempt)
             if new.all_passed:
                 ws.commit(f"attempt {attempt}")
@@ -287,6 +288,7 @@ class RepairAgent:
                     )
                 outcome = "regressed" if verdict == "regressed" else "no effect"
                 ws.revert()
+                self._last_output = kept_output  # triage must see the restored state
                 self.log.emit("patch_reverted", f"Reverted attempt {attempt} ({outcome})",
                               attempt=attempt, data={"reason": outcome})
                 history.append(prompts.AttemptRecord(
