@@ -1,5 +1,8 @@
 # Submission checklist
 
+Copy-paste text for the form and the ordered critical path are in
+[SUBMISSION.md](SUBMISSION.md).
+
 ## Required items and where they live
 
 | Requirement | Where | Status |
@@ -12,13 +15,13 @@
 | README: how Nemotron is used | `README.md` "How Nemotron is used" | Done (numbers pending a bench run) |
 | README: where Token Factory accelerated the workflow, with measured numbers | `README.md` BENCH block | **To do: `test-repair bench --readme README.md`** |
 | README: every other Nebius service used | `README.md` "Other Nebius services used" | Done (marked untested) |
-| Working demo: web UI at a public URL | `Dockerfile`, `deploy/README.md` | **To do: deploy and paste the URL** |
+| Working demo: web UI at a public URL | `Dockerfile`, `deploy/README.md` (live); `.github/workflows/pages.yml` + `web/recordings/` (replay backup) | **To do: deploy and paste the URL; publish a real recording for the replay site** |
 | `FEEDBACK.md` | `FEEDBACK.md` | Seeded; add your live observations |
 | Project description | `docs/PROJECT_DESCRIPTION.md` | Done |
 | Demo video script (≤ 3 min) | `docs/DEMO_SCRIPT.md` | Done; fill the numbers from results.md |
 | Example red-to-green run with real calls | `docs/example_run.md` | **To do: `test-repair run examples/demo_invoice --save-md docs/example_run.md`** |
 | Benchmark with real results and a single-shot baseline | `bench/results/results.md` | **To do: run the benchmark** |
-| Unit and guardrail tests pass | `pytest` | 152 passed, 22 skipped (Docker/live) on the build machine and in a fresh clone; CI runs the Docker ones |
+| Unit and guardrail tests pass | `pytest` | 155 passed, 22 skipped (Docker/live) on the build machine and in a fresh clone; CI runs the Docker ones |
 
 ## Only you can do these
 

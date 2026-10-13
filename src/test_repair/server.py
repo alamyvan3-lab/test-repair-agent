@@ -42,6 +42,7 @@ log = logging.getLogger("test_repair.server")
 
 _NAME_RE = re.compile(r"^[A-Za-z0-9_\-]{1,64}$")
 _RUN_ID_RE = re.compile(r"^[a-f0-9]{12}$")
+_RECORDING_RE = re.compile(r"^[A-Za-z0-9_\-]{1,100}\.jsonl?$")
 _CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'")
 
@@ -243,6 +244,14 @@ def create_app(
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
         return FileResponse(web_dir / "index.html", headers={"Content-Security-Policy": _CSP})
+
+    @app.get("/recordings/{name}", include_in_schema=False)
+    def recording(name: str) -> FileResponse:
+        path = web_dir / "recordings" / name
+        if not _RECORDING_RE.match(name) or not path.is_file():
+            raise HTTPException(404, "recording not found")
+        return FileResponse(path, media_type="application/json" if name.endswith(".json")
+                            else "application/x-ndjson")
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:

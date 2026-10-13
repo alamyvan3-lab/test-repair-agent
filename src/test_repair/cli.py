@@ -1,4 +1,4 @@
-"""Command line: `test-repair run PATH`, `bench`, `serve`, and `doctor`."""
+"""Command line: `test-repair run PATH`, `bench`, `serve`, `doctor`, `publish-recording`."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ import time
 import urllib.error
 from pathlib import Path
 
+from . import recordings
 from .agent import RepairAgent
 from .config import ConfigError, Settings
 from .events import Event
@@ -156,6 +157,13 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     return 0 if all(ok for _, ok, _ in checks) else 1
 
 
+def cmd_publish_recording(args: argparse.Namespace) -> int:
+    entry = recordings.publish(Path(args.run_dir), Path(args.dest), args.title)
+    print(f"Published {entry['file']} ({entry['status']}) to {args.dest}; commit it to update "
+          "the replay page.")
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -187,11 +195,17 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
     sub.add_parser("doctor", help="check Python, git, Docker, sandbox image, key, and models")
+    rec = sub.add_parser("publish-recording",
+                         help="add a real run's events.jsonl to web/recordings for replay")
+    rec.add_argument("run_dir", help="artifact directory of a finished `test-repair run`")
+    rec.add_argument("--title", help="label shown in the replay picker")
+    rec.add_argument("--dest", default="web/recordings")
     args = parser.parse_args(argv)
     args.argv = argv
 
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
-    commands = {"run": cmd_run, "serve": cmd_serve, "doctor": cmd_doctor}
+    commands = {"run": cmd_run, "serve": cmd_serve, "doctor": cmd_doctor,
+                "publish-recording": cmd_publish_recording}
     try:
         return commands[args.command](args)
     except (ConfigError, SandboxError) as exc:

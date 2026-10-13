@@ -12,7 +12,11 @@ diagnoses the fault and writes the patch. A small model (Nano role) triages test
 sanity-checks each patch. The output is a `repair.patch`, a plain-language explanation, and
 a full event log. You can watch every step live in a web UI.
 
-> **Verification status (2026-10-12).** The code, the test suite (152 offline tests pass; 22 more need Docker or a key), and
+**Demo:** live app `<added after deployment>` · replay of recorded real runs
+`<https://<github-user>.github.io/test-repair-agent/ after the first recording>` · video
+`<YouTube link>`. See [docs/SUBMISSION.md](docs/SUBMISSION.md).
+
+> **Verification status (2026-10-12).** The code, the test suite (155 offline tests pass; 22 more need Docker or a key), and
 > the guardrail tests are verified. These tests use a scripted fake model and the local
 > subprocess sandbox. **Not yet run:** real Token Factory calls (no API key was available
 > while building), the Docker sandbox tests (Docker was not installed on the build
@@ -111,8 +115,16 @@ pip install -e ".[dev]"
    test-repair serve
    ```
 
-No Docker? Set `SANDBOX_BACKEND=local` to use the subprocess runner instead. It is much
-weaker; see [Guardrails](#guardrails).
+6. **Publish a real run for replay** (optional). The UI replays it with `?replay`, and
+   GitHub Pages hosts it with no server or key:
+
+   ```bash
+   test-repair publish-recording runs/<run-dir> --title "Invoice coupon bug"
+   ```
+
+No Docker? Set `SANDBOX_BACKEND=local` (or pass `--sandbox local`) to use the subprocess
+runner instead. It is much weaker; see [Guardrails](#guardrails). It is fine for the
+bundled demo repos, which are trusted code.
 
 Run the project's own tests with `pytest`. Docker tests skip when Docker is unavailable.
 Live model tests run only with `pytest -m live` and a configured `.env`.
@@ -262,6 +274,7 @@ Results: see the table under [Where Token Factory helped](#where-token-factory-h
 | Agent loop: corrections, regression revert, budgets, sanity rejection, single-shot baseline | Verified with a scripted fake model + local sandbox |
 | SBFL (both `sys.monitoring` and `sys.settrace` paths), isolation rerun, parallel candidates with voting, minimization, static anti-gaming checks, compile check | Verified with the fake model + local sandbox (Python 3.14); **effect on real pass rates not measured** |
 | Web API + SSE stream to completion | Verified (real uvicorn server in tests) and in a browser (fake model, all techniques on) |
+| Replay mode on a static server (the GitHub Pages path) | Verified in a browser with a throwaway recording from a fake run; `publish-recording` refuses fake-model runs (tested) |
 | Bench repos fail before / pass after reference fix | Verified with the local sandbox |
 | Docker sandbox (network blocked, timeout kill, read-only root) | **Not run locally** (no Docker on the build machine); the CI workflow runs these tests on GitHub's Ubuntu runners once the repo is pushed |
 | Python 3.11-3.13 | **Not run locally** (only 3.14 installed); covered by the CI matrix once pushed |
@@ -274,7 +287,9 @@ Results: see the table under [Where Token Factory helped](#where-token-factory-h
 src/test_repair/   config, llm, prompts, pytest_parser, localize, sbfl, patcher, candidates,
                    minimize, workspace, sandbox, agent, events, report, benchmark, cli, server
 .github/workflows/ ci.yml: lint + tests (with Docker) on 3.11-3.13; opt-in live job
-web/index.html     single-file UI (no build step)
+                   pages.yml: publishes web/ as the static replay demo
+web/index.html     single-file UI (no build step); live mode or replay mode
+web/recordings/    published event logs of real runs, for replay
 sandbox/           sandbox image (python + pytest)
 examples/          demo repos (demo_invoice, injection_demo) + reference fixes
 bench/             repos/, reference_fixes/, manifest.json, run_bench.py, results/

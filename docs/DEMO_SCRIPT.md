@@ -8,6 +8,10 @@ Before recording:
 - Have the web UI open at the deployed URL (or `test-repair serve` locally) and a terminal
   in the repo root.
 - Pick `demo_invoice` in the UI's dropdown.
+- If you record with `SANDBOX_BACKEND=local` (no Docker), replace "fresh Docker container"
+  below with "a sandboxed subprocess".
+- Fallback if a live run misbehaves on the day: open `?replay` and play a published real
+  run at 1×, and say "this is a replay of a recorded run".
 
 Placeholders like `[pass rate]` must be filled from `bench/results/results.md`.
 

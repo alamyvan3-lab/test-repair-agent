@@ -68,6 +68,8 @@
   .table-wrap { overflow-x: auto; }
   a { color: var(--ultra); }
   #error { color: var(--red); margin-top: 10px; }
+  .note { background: var(--amber-bg); color: var(--text); border-radius: 8px; padding: 10px 12px;
+          margin-bottom: 12px; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -78,7 +80,7 @@
     <div class="bar"></div>
   </header>
 
-  <section class="panel">
+  <section class="panel" id="live-panel">
     <div class="controls">
       <select id="demo" aria-label="Demo repository"></select>
       <button id="run">Run repair</button>
@@ -89,7 +91,22 @@
     </div>
     <div class="hint" id="demo-desc"></div>
     <div class="models" id="models"></div>
+    <div class="hint" id="replay-link" hidden><a href="?replay">Watch a recorded run instead</a></div>
     <div id="error" role="alert"></div>
+  </section>
+
+  <section class="panel" id="replay-panel" hidden>
+    <div class="note" id="replay-note"></div>
+    <div class="controls">
+      <select id="recording" aria-label="Recorded run"></select>
+      <select id="speed" aria-label="Playback speed">
+        <option value="1">1× (recorded timing)</option>
+        <option value="2" selected>2×</option>
+        <option value="5">5×</option>
+      </select>
+      <button id="play">Play recording</button>
+    </div>
+    <div class="models" id="replay-models"></div>
   </section>
 
   <ol id="timeline" aria-live="polite"></ol>
@@ -281,9 +298,97 @@ async function start(body, headers) {
   }
 }
 
-async function init() {
+// -- replay: plays back events.jsonl of a real recorded run (works on static hosting) --
+const params = new URLSearchParams(location.search);
+let recordings = [], playToken = 0;
+
+async function loadRecordings() {
   try {
-    const health = await (await fetch("/api/health")).json();
+    const res = await fetch("recordings/index.json", { cache: "no-store" });
+    return res.ok ? await res.json() : { recordings: [] };
+  } catch (err) {
+    return { recordings: [] };
+  }
+}
+
+function showRecordingModels() {
+  const r = recordings.find((x) => x.file === $("recording").value);
+  const m = $("replay-models");
+  m.replaceChildren();
+  if (!r) return;
+  m.append(badge("ULTRA", "ultra"), el("span", "meta", r.models.ultra),
+    badge("NANO", "nano"), el("span", "meta", r.models.nano),
+    badge("sandbox: " + r.sandbox, "neutral"), el("span", "meta", "recorded " + r.recorded_at));
+}
+
+async function initReplay() {
+  $("live-panel").hidden = true;
+  $("replay-panel").hidden = false;
+  const index = await loadRecordings();
+  recordings = index.recordings || [];
+  const note = $("replay-note");
+  note.append(el("strong", null, "Replay mode. "), document.createTextNode(
+    "This page plays back the event log of a real recorded run. It makes no model calls, " +
+    "and long waits are shortened. "));
+  if (index.live_url) {
+    const a = el("a", null, "Open the live demo");
+    a.href = index.live_url;
+    note.append(a);
+  }
+  if (!recordings.length) {
+    $("play").disabled = true;
+    note.append(el("div", "meta", "No recording has been published yet."));
+    return;
+  }
+  for (const r of recordings) {
+    const opt = el("option", null, `${r.title || r.repo} · ${r.status}`);
+    opt.value = r.file;
+    $("recording").append(opt);
+  }
+  if (recordings.some((r) => r.file === params.get("replay"))) $("recording").value = params.get("replay");
+  $("recording").addEventListener("change", showRecordingModels);
+  showRecordingModels();
+}
+
+async function play() {
+  const token = ++playToken;  // a newer playback cancels this one
+  $("timeline").replaceChildren();
+  $("summary").style.display = "none";
+  t0 = 0;
+  const text = await (await fetch("recordings/" + encodeURIComponent($("recording").value))).text();
+  const events = text.split("\n").filter((line) => line.trim()).map((line) => JSON.parse(line));
+  const speed = Number($("speed").value);
+  let prev = events.length ? events[0].ts : 0;
+  for (const e of events) {
+    const wait = Math.min(((e.ts - prev) * 1000) / speed, 6000);
+    prev = e.ts;
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    if (token !== playToken) return;
+    render(e);
+  }
+  const last = events[events.length - 1];
+  if (last && last.data && last.data.patch) {
+    const link = el("a", null, "Download repair.patch");
+    link.href = URL.createObjectURL(new Blob([last.data.patch], { type: "text/x-diff" }));
+    link.download = "repair.patch";
+    const links = el("div", "hint");
+    links.append(link);
+    $("summary").append(links);
+  }
+}
+
+async function init() {
+  if (params.has("replay")) return initReplay();
+  let health;
+  try {
+    const res = await fetch("/api/health");
+    if (!res.ok) throw new Error(res.statusText);
+    health = await res.json();
+  } catch (err) {
+    return initReplay();  // static hosting (e.g. GitHub Pages): no API, so replay recordings
+  }
+  if (((await loadRecordings()).recordings || []).length) $("replay-link").hidden = false;
+  try {
     const m = $("models");
     m.append(badge("ULTRA", "ultra"), el("span", "meta", health.models.ultra || "not set"),
       badge("NANO", "nano"), el("span", "meta", health.models.nano || "not set"),
@@ -309,6 +414,7 @@ $("upload").addEventListener("click", () => {
   const file = $("zip").files[0];
   if (file) start(file, { "Content-Type": "application/zip" });
 });
+$("play").addEventListener("click", play);
 init();
 </script>
 </body>
