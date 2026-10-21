@@ -1,12 +1,12 @@
 {
   "meta": {
-    "started_at": "2026-10-21T11:04:00+00:00",
-    "finished_at": "2026-10-21T11:10:41+00:00",
+    "started_at": "2026-10-21T11:13:34+00:00",
+    "finished_at": "2026-10-21T11:21:19+00:00",
     "runner": "local",
     "sandbox": "local",
     "trials": 1,
     "seed": 0,
-    "commit": "08e835e",
+    "commit": "bf4c7b7",
     "python": "3.14.6",
     "platform": "Windows-11-10.0.26200-SP0",
     "models": {
@@ -49,54 +49,54 @@
       "runs": 15,
       "successes": 15,
       "pass_rate": 1.0,
-      "mean_attempts_to_success": 1.07,
+      "mean_attempts_to_success": 1.13,
       "statuses": {
         "SUCCESS": 15
       },
       "roles": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
-          "calls": 67,
-          "prompt_tokens": 94747,
-          "completion_tokens": 66446,
-          "latency_s": 457.76,
-          "mean_latency_per_call_s": 6.832,
-          "cost_usd": 0.294085
+          "calls": 57,
+          "prompt_tokens": 75352,
+          "completion_tokens": 47280,
+          "latency_s": 470.349,
+          "mean_latency_per_call_s": 8.252,
+          "cost_usd": 0.217192
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
-          "calls": 61,
-          "prompt_tokens": 37555,
-          "completion_tokens": 18555,
-          "latency_s": 99.441,
-          "mean_latency_per_call_s": 1.63,
-          "cost_usd": 0.006706
+          "calls": 67,
+          "prompt_tokens": 40508,
+          "completion_tokens": 23982,
+          "latency_s": 111.93,
+          "mean_latency_per_call_s": 1.671,
+          "cost_usd": 0.008186
         }
       },
-      "total_tokens": 217303,
-      "total_cost_usd": 0.300791,
-      "total_wall_time_s": 314.05,
-      "triage_input_chars": 32099,
-      "triage_summary_chars": 7874
+      "total_tokens": 187122,
+      "total_cost_usd": 0.225378,
+      "total_wall_time_s": 336.18,
+      "triage_input_chars": 33704,
+      "triage_summary_chars": 8312
     },
     "single_shot": {
       "runs": 15,
-      "successes": 10,
-      "pass_rate": 0.6667,
+      "successes": 14,
+      "pass_rate": 0.9333,
       "mean_attempts_to_success": 1.0,
       "statuses": {
-        "EXHAUSTED": 5,
-        "SUCCESS": 10
+        "SUCCESS": 14,
+        "EXHAUSTED": 1
       },
       "roles": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 15,
-          "prompt_tokens": 13234,
-          "completion_tokens": 13882,
-          "latency_s": 55.524,
-          "mean_latency_per_call_s": 3.702,
-          "cost_usd": 0.05488
+          "prompt_tokens": 13235,
+          "completion_tokens": 22008,
+          "latency_s": 90.691,
+          "mean_latency_per_call_s": 6.046,
+          "cost_usd": 0.079259
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -108,9 +108,9 @@
           "cost_usd": 0.0
         }
       },
-      "total_tokens": 27116,
-      "total_cost_usd": 0.05488,
-      "total_wall_time_s": 86.53,
+      "total_tokens": 35243,
+      "total_cost_usd": 0.079259,
+      "total_wall_time_s": 128.86,
       "triage_input_chars": 0,
       "triage_summary_chars": 0
     }
@@ -124,44 +124,44 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 16.429,
+      "wall_time_s": 11.513,
       "test_runs": 4,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
-          "calls": 7,
-          "prompt_tokens": 12697,
-          "completion_tokens": 6216,
-          "latency_s": 22.14
+          "calls": 3,
+          "prompt_tokens": 4488,
+          "completion_tokens": 2167,
+          "latency_s": 9.898
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
-          "calls": 3,
-          "prompt_tokens": 1754,
-          "completion_tokens": 907,
-          "latency_s": 4.419
+          "calls": 4,
+          "prompt_tokens": 2312,
+          "completion_tokens": 800,
+          "latency_s": 5.693
         }
       },
       "triage_input_chars": 1690,
-      "triage_summary_chars": 579
+      "triage_summary_chars": 310
     },
     {
       "repo": "checkout_second_file",
       "category": "fix requires reading a second file",
       "mode": "single_shot",
       "trial": 0,
-      "status": "EXHAUSTED",
-      "message": "Tests still failing after 1 attempt(s).",
+      "status": "SUCCESS",
+      "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 3.79,
-      "test_runs": 1,
+      "wall_time_s": 6.51,
+      "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 1031,
-          "completion_tokens": 787,
-          "latency_s": 2.326
+          "completion_tokens": 862,
+          "latency_s": 4.3
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -182,26 +182,26 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 13.009,
-      "test_runs": 4,
+      "wall_time_s": 23.555,
+      "test_runs": 5,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
-          "calls": 3,
-          "prompt_tokens": 3249,
-          "completion_tokens": 1329,
-          "latency_s": 6.532
+          "calls": 5,
+          "prompt_tokens": 6153,
+          "completion_tokens": 6226,
+          "latency_s": 21.343
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           "calls": 4,
-          "prompt_tokens": 2246,
-          "completion_tokens": 1383,
-          "latency_s": 7.222
+          "prompt_tokens": 2243,
+          "completion_tokens": 843,
+          "latency_s": 3.859
         }
       },
       "triage_input_chars": 1765,
-      "triage_summary_chars": 582
+      "triage_summary_chars": 444
     },
     {
       "repo": "profile_none_check",
@@ -211,15 +211,15 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 6.071,
+      "wall_time_s": 3.997,
       "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 827,
-          "completion_tokens": 1059,
-          "latency_s": 3.778
+          "completion_tokens": 390,
+          "latency_s": 1.724
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -240,44 +240,44 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 13.971,
+      "wall_time_s": 12.849,
       "test_runs": 4,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 3,
-          "prompt_tokens": 4254,
-          "completion_tokens": 1736,
-          "latency_s": 13.008
+          "prompt_tokens": 4239,
+          "completion_tokens": 2014,
+          "latency_s": 9.591
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           "calls": 4,
-          "prompt_tokens": 2587,
-          "completion_tokens": 1176,
-          "latency_s": 5.176
+          "prompt_tokens": 2599,
+          "completion_tokens": 1431,
+          "latency_s": 6.279
         }
       },
       "triage_input_chars": 2177,
-      "triage_summary_chars": 563
+      "triage_summary_chars": 500
     },
     {
       "repo": "pager_offbyone",
       "category": "off-by-one",
       "mode": "single_shot",
       "trial": 0,
-      "status": "EXHAUSTED",
-      "message": "Tests still failing after 1 attempt(s).",
+      "status": "SUCCESS",
+      "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 4.528,
-      "test_runs": 1,
+      "wall_time_s": 5.648,
+      "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 936,
-          "completion_tokens": 682,
-          "latency_s": 3.212
+          "completion_tokens": 727,
+          "latency_s": 3.366
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -298,26 +298,26 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 13.862,
+      "wall_time_s": 57.501,
       "test_runs": 4,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 3,
-          "prompt_tokens": 3321,
-          "completion_tokens": 1545,
-          "latency_s": 6.944
+          "prompt_tokens": 3249,
+          "completion_tokens": 1567,
+          "latency_s": 142.747
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           "calls": 4,
-          "prompt_tokens": 1809,
-          "completion_tokens": 1394,
-          "latency_s": 6.677
+          "prompt_tokens": 1796,
+          "completion_tokens": 1421,
+          "latency_s": 6.874
         }
       },
       "triage_input_chars": 1139,
-      "triage_summary_chars": 425
+      "triage_summary_chars": 298
     },
     {
       "repo": "filenames_slicing",
@@ -327,15 +327,15 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 4.836,
+      "wall_time_s": 5.079,
       "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 745,
-          "completion_tokens": 586,
-          "latency_s": 2.261
+          "completion_tokens": 521,
+          "latency_s": 2.832
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -356,26 +356,26 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 10.823,
-      "test_runs": 3,
+      "wall_time_s": 14.238,
+      "test_runs": 4,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 3,
-          "prompt_tokens": 3558,
-          "completion_tokens": 2764,
-          "latency_s": 11.629
+          "prompt_tokens": 3657,
+          "completion_tokens": 4941,
+          "latency_s": 17.191
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           "calls": 4,
-          "prompt_tokens": 2619,
-          "completion_tokens": 625,
-          "latency_s": 4.023
+          "prompt_tokens": 2565,
+          "completion_tokens": 934,
+          "latency_s": 4.359
         }
       },
       "triage_input_chars": 1658,
-      "triage_summary_chars": 590
+      "triage_summary_chars": 694
     },
     {
       "repo": "shapes_wrong_import",
@@ -385,15 +385,15 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 11.113,
+      "wall_time_s": 17.474,
       "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
-          "prompt_tokens": 998,
-          "completion_tokens": 2254,
-          "latency_s": 8.457
+          "prompt_tokens": 999,
+          "completion_tokens": 3327,
+          "latency_s": 15.214
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -414,22 +414,22 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 19.337,
+      "wall_time_s": 57.873,
       "test_runs": 4,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 3,
           "prompt_tokens": 3801,
-          "completion_tokens": 1666,
-          "latency_s": 8.962
+          "completion_tokens": 1476,
+          "latency_s": 131.227
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           "calls": 4,
-          "prompt_tokens": 3328,
-          "completion_tokens": 2444,
-          "latency_s": 12.104
+          "prompt_tokens": 3353,
+          "completion_tokens": 2470,
+          "latency_s": 11.665
         }
       },
       "triage_input_chars": 4308,
@@ -443,15 +443,15 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 5.019,
+      "wall_time_s": 7.746,
       "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 976,
-          "completion_tokens": 517,
-          "latency_s": 2.074
+          "completion_tokens": 610,
+          "latency_s": 5.367
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -472,44 +472,44 @@
       "status": "SUCCESS",
       "message": "All tests pass after 2 attempt(s).",
       "attempts": 2,
-      "wall_time_s": 51.238,
+      "wall_time_s": 26.893,
       "test_runs": 8,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
-          "calls": 11,
-          "prompt_tokens": 18018,
-          "completion_tokens": 26767,
-          "latency_s": 95.352
+          "calls": 6,
+          "prompt_tokens": 8730,
+          "completion_tokens": 5966,
+          "latency_s": 28.945
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
-          "calls": 6,
-          "prompt_tokens": 3873,
-          "completion_tokens": 1852,
-          "latency_s": 9.904
+          "calls": 8,
+          "prompt_tokens": 4873,
+          "completion_tokens": 2524,
+          "latency_s": 11.435
         }
       },
       "triage_input_chars": 3366,
-      "triage_summary_chars": 1062
+      "triage_summary_chars": 1072
     },
     {
       "repo": "durations_two_functions",
       "category": "bug spanning two functions",
       "mode": "single_shot",
       "trial": 0,
-      "status": "EXHAUSTED",
-      "message": "Tests still failing after 1 attempt(s).",
+      "status": "SUCCESS",
+      "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 8.308,
-      "test_runs": 1,
+      "wall_time_s": 28.711,
+      "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 890,
-          "completion_tokens": 2089,
-          "latency_s": 7.078
+          "completion_tokens": 6680,
+          "latency_s": 26.489
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -528,28 +528,28 @@
       "mode": "agent",
       "trial": 0,
       "status": "SUCCESS",
-      "message": "All tests pass after 1 attempt(s).",
-      "attempts": 1,
-      "wall_time_s": 17.302,
-      "test_runs": 5,
+      "message": "All tests pass after 2 attempt(s).",
+      "attempts": 2,
+      "wall_time_s": 19.828,
+      "test_runs": 6,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
-          "calls": 8,
-          "prompt_tokens": 13049,
-          "completion_tokens": 4898,
-          "latency_s": 21.983
+          "calls": 6,
+          "prompt_tokens": 8781,
+          "completion_tokens": 2900,
+          "latency_s": 13.875
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
-          "calls": 4,
-          "prompt_tokens": 2520,
-          "completion_tokens": 1544,
-          "latency_s": 7.065
+          "calls": 8,
+          "prompt_tokens": 4546,
+          "completion_tokens": 3661,
+          "latency_s": 15.79
         }
       },
-      "triage_input_chars": 2269,
-      "triage_summary_chars": 719
+      "triage_input_chars": 3874,
+      "triage_summary_chars": 1219
     },
     {
       "repo": "inventory_early_return",
@@ -559,15 +559,15 @@
       "status": "EXHAUSTED",
       "message": "Tests still failing after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 4.865,
+      "wall_time_s": 9.538,
       "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 858,
-          "completion_tokens": 734,
-          "latency_s": 2.67
+          "completion_tokens": 2012,
+          "latency_s": 7.36
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -588,26 +588,26 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 13.378,
+      "wall_time_s": 12.895,
       "test_runs": 4,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 3,
-          "prompt_tokens": 3744,
-          "completion_tokens": 3072,
-          "latency_s": 13.02
+          "prompt_tokens": 3972,
+          "completion_tokens": 2453,
+          "latency_s": 11.462
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           "calls": 4,
-          "prompt_tokens": 2618,
-          "completion_tokens": 1081,
-          "latency_s": 5.961
+          "prompt_tokens": 2577,
+          "completion_tokens": 1061,
+          "latency_s": 5.326
         }
       },
       "triage_input_chars": 2245,
-      "triage_summary_chars": 523
+      "triage_summary_chars": 745
     },
     {
       "repo": "leaderboard_sort_key",
@@ -617,15 +617,15 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 4.684,
+      "wall_time_s": 4.761,
       "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 885,
-          "completion_tokens": 689,
-          "latency_s": 2.6
+          "completion_tokens": 756,
+          "latency_s": 2.609
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -646,44 +646,44 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 14.305,
+      "wall_time_s": 13.67,
       "test_runs": 5,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
-          "calls": 4,
-          "prompt_tokens": 4398,
-          "completion_tokens": 2899,
-          "latency_s": 11.014
+          "calls": 3,
+          "prompt_tokens": 3150,
+          "completion_tokens": 4035,
+          "latency_s": 18.015
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           "calls": 4,
-          "prompt_tokens": 1917,
-          "completion_tokens": 790,
-          "latency_s": 5.605
+          "prompt_tokens": 1920,
+          "completion_tokens": 1019,
+          "latency_s": 4.343
         }
       },
       "triage_input_chars": 1181,
-      "triage_summary_chars": 393
+      "triage_summary_chars": 489
     },
     {
       "repo": "email_regex_anchor",
       "category": "regex not anchored",
       "mode": "single_shot",
       "trial": 0,
-      "status": "EXHAUSTED",
-      "message": "Tests still failing after 1 attempt(s).",
+      "status": "SUCCESS",
+      "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 5.489,
-      "test_runs": 1,
+      "wall_time_s": 5.922,
+      "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 813,
-          "completion_tokens": 1025,
-          "latency_s": 4.281
+          "completion_tokens": 885,
+          "latency_s": 3.593
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -704,26 +704,26 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 19.043,
+      "wall_time_s": 24.269,
       "test_runs": 6,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 7,
-          "prompt_tokens": 9289,
-          "completion_tokens": 3600,
-          "latency_s": 21.736
+          "prompt_tokens": 9697,
+          "completion_tokens": 4402,
+          "latency_s": 23.096
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
-          "calls": 4,
-          "prompt_tokens": 2173,
-          "completion_tokens": 804,
-          "latency_s": 6.343
+          "calls": 3,
+          "prompt_tokens": 1641,
+          "completion_tokens": 801,
+          "latency_s": 4.002
         }
       },
       "triage_input_chars": 1405,
-      "triage_summary_chars": 354
+      "triage_summary_chars": 426
     },
     {
       "repo": "cart_mutable_default",
@@ -733,15 +733,15 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 4.728,
+      "wall_time_s": 9.067,
       "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 797,
-          "completion_tokens": 453,
-          "latency_s": 2.518
+          "completion_tokens": 2241,
+          "latency_s": 6.78
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -762,26 +762,26 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 14.986,
+      "wall_time_s": 13.236,
       "test_runs": 4,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 3,
-          "prompt_tokens": 3783,
-          "completion_tokens": 3397,
-          "latency_s": 20.323
+          "prompt_tokens": 3810,
+          "completion_tokens": 2368,
+          "latency_s": 9.301
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           "calls": 4,
           "prompt_tokens": 2799,
-          "completion_tokens": 854,
-          "latency_s": 4.686
+          "completion_tokens": 1451,
+          "latency_s": 6.075
         }
       },
       "triage_input_chars": 3075,
-      "triage_summary_chars": 457
+      "triage_summary_chars": 477
     },
     {
       "repo": "wordcount_dict_key",
@@ -791,15 +791,15 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 7.334,
+      "wall_time_s": 5.969,
       "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 848,
-          "completion_tokens": 1123,
-          "latency_s": 4.881
+          "completion_tokens": 1105,
+          "latency_s": 3.68
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -820,26 +820,26 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 74.802,
+      "wall_time_s": 16.114,
       "test_runs": 4,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 3,
-          "prompt_tokens": 3480,
-          "completion_tokens": 3289,
-          "latency_s": 189.7
+          "prompt_tokens": 3411,
+          "completion_tokens": 2789,
+          "latency_s": 12.821
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           "calls": 4,
-          "prompt_tokens": 2439,
-          "completion_tokens": 1792,
-          "latency_s": 8.801
+          "prompt_tokens": 2441,
+          "completion_tokens": 2121,
+          "latency_s": 8.214
         }
       },
       "triage_input_chars": 2154,
-      "triage_summary_chars": 550
+      "triage_summary_chars": 442
     },
     {
       "repo": "stats_empty_input",
@@ -849,15 +849,15 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 4.547,
+      "wall_time_s": 5.199,
       "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 838,
-          "completion_tokens": 676,
-          "latency_s": 2.384
+          "completion_tokens": 725,
+          "latency_s": 2.842
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -878,26 +878,26 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 11.268,
+      "wall_time_s": 17.501,
       "test_runs": 4,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 3,
-          "prompt_tokens": 4464,
-          "completion_tokens": 2147,
-          "latency_s": 8.855
+          "prompt_tokens": 4491,
+          "completion_tokens": 2155,
+          "latency_s": 10.212
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           "calls": 4,
-          "prompt_tokens": 2527,
-          "completion_tokens": 924,
-          "latency_s": 6.203
+          "prompt_tokens": 2489,
+          "completion_tokens": 2282,
+          "latency_s": 11.786
         }
       },
       "triage_input_chars": 1991,
-      "triage_summary_chars": 548
+      "triage_summary_chars": 594
     },
     {
       "repo": "grades_comparison",
@@ -907,15 +907,15 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 6.728,
+      "wall_time_s": 8.232,
       "test_runs": 2,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 1,
           "prompt_tokens": 946,
-          "completion_tokens": 709,
-          "latency_s": 4.625
+          "completion_tokens": 668,
+          "latency_s": 2.502
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
@@ -936,26 +936,26 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 10.296,
+      "wall_time_s": 14.242,
       "test_runs": 4,
       "usage": {
         "ultra": {
           "model": "nvidia/Nemotron-3-Ultra-550b-a55b",
           "calls": 3,
-          "prompt_tokens": 3642,
-          "completion_tokens": 1121,
-          "latency_s": 6.562
+          "prompt_tokens": 3723,
+          "completion_tokens": 1821,
+          "latency_s": 10.625
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",
           "calls": 4,
-          "prompt_tokens": 2346,
-          "completion_tokens": 985,
-          "latency_s": 5.252
+          "prompt_tokens": 2354,
+          "completion_tokens": 1163,
+          "latency_s": 6.23
         }
       },
       "triage_input_chars": 1676,
-      "triage_summary_chars": 466
+      "triage_summary_chars": 539
     },
     {
       "repo": "temps_int_division",
@@ -965,7 +965,7 @@
       "status": "SUCCESS",
       "message": "All tests pass after 1 attempt(s).",
       "attempts": 1,
-      "wall_time_s": 4.485,
+      "wall_time_s": 5.003,
       "test_runs": 2,
       "usage": {
         "ultra": {
@@ -973,7 +973,7 @@
           "calls": 1,
           "prompt_tokens": 846,
           "completion_tokens": 499,
-          "latency_s": 2.379
+          "latency_s": 2.033
         },
         "nano": {
           "model": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B",

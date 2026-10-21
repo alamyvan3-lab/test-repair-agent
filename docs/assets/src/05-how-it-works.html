@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root { --text:#f0f3f6; --muted:#9aa7b6; --dim:#6b7787; --green:#76b900; --ok:#7ee787;
+  --bad:#ff7b72; --ultra:#c7adff; --ultra-bg:#2b2140; --nano:#7fd6e0; --nano-bg:#15303a;
+  --card:#151b23; --line:#2a323d; }
+* { box-sizing:border-box; margin:0; padding:0; }
+html, body { width:1500px; height:1000px; overflow:hidden; }
+body { font-family:"Segoe UI", system-ui, sans-serif; color:var(--text); position:relative;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0) 0 0 / 28px 28px,
+    radial-gradient(ellipse at 15% 5%, #1b2a3a 0%, transparent 55%),
+    radial-gradient(ellipse at 95% 95%, rgba(118,185,0,0.12) 0%, transparent 50%),
+    linear-gradient(160deg, #121a24, #090d13); }
+.head { position:absolute; left:84px; top:64px; right:84px; }
+.kicker { font-size:24px; font-weight:700; letter-spacing:3px; color:var(--green);
+  text-transform:uppercase; }
+h1 { font-size:58px; font-weight:700; letter-spacing:-1px; margin-top:8px; }
+.sub { font-size:25px; color:var(--muted); margin-top:10px; }
+.chip { display:inline-block; font-size:19px; font-weight:700; padding:3px 12px; border-radius:999px; }
+.chip.ultra { background:var(--ultra-bg); color:var(--ultra); }
+.chip.nano { background:var(--nano-bg); color:var(--nano); }
+.foot { position:absolute; left:84px; right:84px; bottom:40px; font-size:19px; color:var(--dim); }
+
+    .row { position:absolute; left:84px; right:84px; top:300px; display:grid;
+      grid-template-columns:repeat(7, 1fr); gap:14px; }
+    .step { background:var(--card); border:2px solid var(--line); border-radius:18px;
+      padding:20px 16px; height:330px; position:relative; }
+    .num { width:44px; height:44px; border-radius:50%; background:#1e2a1a; color:var(--green);
+      font-size:24px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+    .t { font-size:27px; font-weight:700; margin-top:16px; line-height:1.15; }
+    .d { font-size:19px; color:var(--muted); margin-top:10px; line-height:1.35; }
+    .r { position:absolute; left:16px; bottom:18px; }
+    .note { font-size:17px; color:var(--nano); font-weight:600; }
+    .loop { position:absolute; left:84px; right:84px; top:668px; height:120px; }
+    .loop svg { width:100%; height:100%; }
+    .looptext { position:absolute; left:0; right:0; top:782px; text-align:center; font-size:24px;
+      color:#d6dde5; }
+    .looptext b { color:var(--bad); } .looptext i { color:var(--ok); font-style:normal; }
+    </style></head><body><div class="head"><div class="kicker">How Suture works</div><h1>Localize, patch in parallel, verify, minimize</h1><div class="sub">NVIDIA Nemotron Ultra for the hard reasoning, Nano for the frequent cheap calls, both on Nebius Token Factory.</div></div><div class="row"><div class="step"><div class="num">1</div><div class="t">Run tests</div><div class="d">fresh locked-down sandbox; parse every failure</div><div class="r"></div></div><div class="step"><div class="num">2</div><div class="t">Localize</div><div class="d">SBFL: lines run by failing tests, scored with Ochiai</div><div class="r"></div></div><div class="step"><div class="num">3</div><div class="t">Triage</div><div class="d">raw pytest output to compact JSON</div><div class="r"><span class="chip nano">NANO</span></div></div><div class="step"><div class="num">4</div><div class="t">Patch &times;3</div><div class="d">diagnosis + unified diff, three candidates in parallel</div><div class="r"><span class="chip ultra">ULTRA</span></div></div><div class="step"><div class="num">5</div><div class="t">Validate</div><div class="d">paths, no test edits, no test-gaming, compiles, git apply --check</div><div class="r"><span class="note">+ Nano review</span></div></div><div class="step"><div class="num">6</div><div class="t">Vote &amp; verify</div><div class="d">same-AST candidates merge; distinct ones run in parallel sandboxes</div><div class="r"></div></div><div class="step"><div class="num">7</div><div class="t">Minimize</div><div class="d">drop any change the tests do not need</div><div class="r"></div></div></div><div class="loop"><svg viewBox="0 0 1332 120" preserveAspectRatio="none"><path d="M1240 10 C 1240 90, 1180 100, 1100 100 L 232 100 C 150 100, 92 90, 92 10" fill="none" stroke="#d9a441" stroke-width="4" stroke-dasharray="10 10"/><polygon points="80,22 92,2 104,22" fill="#d9a441"/></svg></div><div class="looptext"><b>Still red or regressed?</b> Revert, feed the history back to Ultra, retry (up to 5 attempts). <i>Green?</i> Ship the patch + explanation.</div><div class="foot">Every step is a streamed event with model, tokens, and latency. Plain Python + FastAPI, no agent framework.</div></body></html>

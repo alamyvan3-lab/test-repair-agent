@@ -24,7 +24,7 @@ are visible.
 
 **Narration:**
 "A failing test is the most precise bug report you'll ever get, but fixing it is still
-manual: read the traceback, find the file, patch, rerun. Test-Repair Agent closes that loop
+manual: read the traceback, find the file, patch, rerun. Suture closes that loop
 with NVIDIA Nemotron models on Nebius Token Factory."
 
 ## 0:20 to 1:50: A live run, and which model does what
@@ -69,18 +69,20 @@ treated as untrusted data, and the validator would block a test edit anyway."
 
 **Screen:** `bench/results/results.md` (or the README benchmark block).
 
-**Narration (fill from results.md):**
+**Narration (numbers measured 2026-10-21; update them if you rerun the benchmark):**
 "We built 15 small repos, each with one seeded bug: off-by-one, wrong operator, missing
 None check, a bug spanning two functions, one that needs a second file, and more. The full
-agent fixed [X of 15] ([pass rate]) in a mean of [attempts] attempts. A single-shot
-baseline, one Ultra call with no loop, fixed [Y of 15]."
+agent fixed all 15. One Ultra call with no loop fixed 14. Nemotron Ultra is strong. The
+loop earned its keep on the one it missed: all three candidates agreed on the same wrong
+fix, the tests caught it, and the agent finished the fix on its second attempt."
 
-"On Token Factory, Ultra calls averaged [ultra latency]s and Nano calls [nano latency]s.
-Nano triage cut the failure text Ultra reads by [percent]. The whole benchmark cost
-[cost] at catalog prices."
+"On Token Factory, Nano made more calls than Ultra but cost about 4% of the model spend,
+at 1.7 seconds a call against Ultra's 8. Nano's triage cut the text Ultra reads by 75%.
+The whole agent benchmark cost 23 cents."
 
-If the agent did not beat the baseline, say so and name the failure modes listed in
-results.md.
+**Screen (optional, 5 s):** `bench/results/history/`, the first run, which exposed a
+patcher bug we then fixed. "We kept the first run too: it caught a formatting habit of the
+model that our patcher had to learn."
 
 ## 2:30 to 3:00: Architecture and repo
 

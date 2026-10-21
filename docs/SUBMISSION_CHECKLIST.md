@@ -13,15 +13,15 @@ Copy-paste text for the form and the ordered critical path are in
 | Public repo with Apache-2.0 `LICENSE` at the root, named at the top of the README | `LICENSE`, `README.md` line 1-4 | Done |
 | README: setup and run instructions | `README.md` Quickstart | Done |
 | README: how Nemotron is used | `README.md` "How Nemotron is used" | Done (numbers pending a bench run) |
-| README: where Token Factory accelerated the workflow, with measured numbers | `README.md` BENCH block | **To do: `test-repair bench --readme README.md`** |
+| README: where Token Factory accelerated the workflow, with measured numbers | `README.md` BENCH block | Done 2026-10-21 (measured, written by the bench run) |
 | README: every other Nebius service used | `README.md` "Other Nebius services used" | Done (marked untested) |
 | Working demo: web UI at a public URL | `Dockerfile`, `deploy/README.md` (live); `.github/workflows/pages.yml` + `web/recordings/` (replay backup) | **To do: deploy and paste the URL; publish a real recording for the replay site** |
 | `FEEDBACK.md` | `FEEDBACK.md` | Seeded; add your live observations |
 | Project description | `docs/PROJECT_DESCRIPTION.md` | Done |
 | Demo video script (≤ 3 min) | `docs/DEMO_SCRIPT.md` | Done; fill the numbers from results.md |
 | Example red-to-green run with real calls | `docs/example_run.md` | Done 2026-10-21 (SUCCESS in 1 attempt, 13.7 s); also published for replay |
-| Benchmark with real results and a single-shot baseline | `bench/results/results.md` | **To do: run the benchmark** |
-| Unit and guardrail tests pass | `pytest` | 155 passed, 22 skipped (Docker/live) on the build machine and in a fresh clone; CI runs the Docker ones |
+| Benchmark with real results and a single-shot baseline | `bench/results/results.md` | Done 2026-10-21: agent 15/15, single-shot 14/15 (run 1 archived in `bench/results/history/`) |
+| Unit and guardrail tests pass | `pytest` | 157 passed, 20 skipped (Docker), 2 live tests opt-in (`pytest -m live`, spends credits); CI runs the Docker ones |
 
 ## Only you can do these
 

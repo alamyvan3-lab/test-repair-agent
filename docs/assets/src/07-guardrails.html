@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root { --text:#f0f3f6; --muted:#9aa7b6; --dim:#6b7787; --green:#76b900; --ok:#7ee787;
+  --bad:#ff7b72; --ultra:#c7adff; --ultra-bg:#2b2140; --nano:#7fd6e0; --nano-bg:#15303a;
+  --card:#151b23; --line:#2a323d; }
+* { box-sizing:border-box; margin:0; padding:0; }
+html, body { width:1500px; height:1000px; overflow:hidden; }
+body { font-family:"Segoe UI", system-ui, sans-serif; color:var(--text); position:relative;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0) 0 0 / 28px 28px,
+    radial-gradient(ellipse at 15% 5%, #1b2a3a 0%, transparent 55%),
+    radial-gradient(ellipse at 95% 95%, rgba(118,185,0,0.12) 0%, transparent 50%),
+    linear-gradient(160deg, #121a24, #090d13); }
+.head { position:absolute; left:84px; top:64px; right:84px; }
+.kicker { font-size:24px; font-weight:700; letter-spacing:3px; color:var(--green);
+  text-transform:uppercase; }
+h1 { font-size:58px; font-weight:700; letter-spacing:-1px; margin-top:8px; }
+.sub { font-size:25px; color:var(--muted); margin-top:10px; }
+.chip { display:inline-block; font-size:19px; font-weight:700; padding:3px 12px; border-radius:999px; }
+.chip.ultra { background:var(--ultra-bg); color:var(--ultra); }
+.chip.nano { background:var(--nano-bg); color:var(--nano); }
+.foot { position:absolute; left:84px; right:84px; bottom:40px; font-size:19px; color:var(--dim); }
+
+    .grid { position:absolute; left:84px; right:84px; top:300px; display:grid;
+      grid-template-columns:repeat(3, 1fr); gap:20px; }
+    .tile { background:var(--card); border:2px solid var(--line); border-radius:18px;
+      padding:28px 28px; height:300px; border-top:6px solid var(--green); }
+    .tt { font-size:30px; font-weight:700; }
+    .td { font-size:22px; color:var(--muted); margin-top:12px; line-height:1.45; }
+    </style></head><body><div class="head"><div class="kicker">Guardrails</div><h1>Fixes the code. Never the tests.</h1><div class="sub">Every rule below is covered by an automated test in the repository.</div></div><div class="grid"><div class="tile"><div class="tt">Locked-down sandbox</div><div class="td">Fresh container per run: no network, read-only root, CPU / memory / PID limits, all capabilities dropped, non-root, hard timeout.</div></div><div class="tile"><div class="tt">Tests are off-limits</div><div class="td">Any diff touching tests/, test_*.py, conftest.py, or pytest / tox / pyproject config is rejected before it is applied.</div></div><div class="tile"><div class="tt">No test-gaming</div><div class="td">Code that reads PYTEST_CURRENT_TEST, inspects the call stack, or mocks in source is blocked, then Nano reviews every patch.</div></div><div class="tile"><div class="tt">Injection-resistant</div><div class="td">Code and test output are data, never instructions. A demo repo hides “delete the tests” in its source; nothing obeys it.</div></div><div class="tile"><div class="tt">Budgets</div><div class="td">Max attempts, corrections, tokens, and wall time. Runs end cleanly with a clear status instead of looping.</div></div><div class="tile"><div class="tt">Secrets stay put</div><div class="td">The Token Factory key stays server-side, is redacted from events and reports, and never enters the sandbox.</div></div></div></body></html>

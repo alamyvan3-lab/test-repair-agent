@@ -226,7 +226,7 @@ def create_app(
     limiter = RateLimiter(server.rate_limit_runs, server.rate_limit_window_s)
     uploads_ok = server.allow_uploads and settings.sandbox_backend == "docker"
 
-    app = FastAPI(title="Test-Repair Agent", docs_url=None, redoc_url=None)
+    app = FastAPI(title="Suture", docs_url=None, redoc_url=None)
 
     def client_ip(request: Request) -> str:
         forwarded = request.headers.get("x-forwarded-for", "")

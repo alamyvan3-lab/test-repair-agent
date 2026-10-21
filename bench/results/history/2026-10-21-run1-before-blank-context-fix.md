@@ -1,7 +1,7 @@
 > **Archived run 1 (2026-10-21).** Kept for the record. It exposed a patcher gap: Nemotron Ultra
 > padded hunks with a blank context line past the end of the file. That caused 3 of the 5
-> single-shot failures (no patch could be applied) and 15 rejected diffs in agent mode. The
-> next commit fixes it; the current results are in [../results.md](../results.md).
+> single-shot failures (no patch could be applied) and 18 of the 22 rejected diffs in agent
+> mode. The commit after this run fixes it; current results: [../results.md](../results.md).
 
 # Benchmark results
 

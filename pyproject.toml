@@ -29,6 +29,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Live tests spend Token Factory credits: they run only with `pytest -m live`.
+addopts = "-m 'not live'"
 markers = [
     "live: makes real Token Factory calls (needs TOKEN_FACTORY_API_KEY and model IDs)",
     "docker: needs a running Docker daemon and the sandbox image",

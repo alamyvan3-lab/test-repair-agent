@@ -1,3 +1,3 @@
-"""Test-Repair Agent: fixes failing pytest suites with Nemotron models on Nebius Token Factory."""
+"""Suture (package test_repair): fixes failing pytest suites with Nemotron on Nebius Token Factory."""
 
 __version__ = "0.1.0"

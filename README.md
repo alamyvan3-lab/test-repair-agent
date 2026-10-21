@@ -1,9 +1,14 @@
-# Test-Repair Agent
+# Suture
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 **License: Apache-2.0** (see [LICENSE](LICENSE)).
 
-Test-Repair Agent takes a Python repository whose pytest suite fails and works out why. It
+![Suture: minimal, verified fixes for failing tests](docs/assets/suture-thumbnail.png)
+
+**Minimal, verified fixes for failing tests.** The repository and CLI are named
+`test-repair-agent` and `test-repair`.
+
+Suture takes a Python repository whose pytest suite fails and works out why. It
 proposes a minimal unified diff and applies it to a copy of the repo inside a locked-down
 Docker sandbox. It reruns the tests and keeps iterating until the suite is green or the
 attempt budget runs out. Two NVIDIA Nemotron models split the work, both served by
@@ -18,8 +23,8 @@ a full event log. You can watch every step live in a web UI.
 
 > **Verification status (2026-10-21).** Real Nemotron calls on Token Factory work. The
 > first real red-to-green run is in [docs/example_run.md](docs/example_run.md), and it is
-> also the replay demo. The offline test suite (155 tests pass; 22 more need Docker or a
-> key) and the guardrail tests are verified. **Not yet run:** the Docker sandbox tests
+> also the replay demo. The offline test suite (157 tests pass; 20 need Docker; 2 live
+> tests run only with `pytest -m live`) and the guardrail tests are verified. **Not yet run:** the Docker sandbox tests
 > (Docker is not installed on the build machine; the GitHub Actions workflow runs them)
 > and anything on Nebius AI Cloud. Every section below says which parts are measured. See
 > [Verification status](#verification-status).
@@ -179,8 +184,11 @@ text Ultra had to read.
     accepted.
   - Nano costs $0.06 / $0.24 per 1M tokens against Ultra's $1 / $3, so the 4 Nano calls
     cost $0.0004 in total.
-- **Measured across the benchmark:** the block below is replaced with real numbers by
-  `test-repair bench --readme README.md`. Nothing in it is written by hand.
+- **Measured across the benchmark (agent mode, 15 repos):** Nano made more calls than
+  Ultra (67 against 57), but cost $0.0082 against Ultra's $0.217, about 4% of the model
+  spend. It answered in 1.67 s per call against Ultra's 8.25 s. The frequent work landed on
+  the cheap, fast model, and Ultra read summaries 75% smaller than the raw test output. The
+  block below is written by `test-repair bench --readme README.md`, not by hand.
 - **Integration facts (no performance claim):** both Nemotron roles sit behind one
   OpenAI-compatible endpoint and one key, so moving a role to another model is a one-line
   env change (`MODEL_ULTRA`/`MODEL_NANO`). The agent needs no provider-specific SDK; it uses
@@ -190,21 +198,22 @@ text Ultra had to read.
   something the benchmark's per-call latencies will show.
 
 <!-- BENCH:START -->
-_Measured 2026-10-21T11:10:41+00:00 with `nvidia/Nemotron-3-Ultra-550b-a55b` (Ultra role) and `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` (Nano role), local sandbox, 1 trial(s) per repo; agent techniques: candidates=3, sbfl=True, isolation rerun=True, minimize patch=True, sanity check=True, nano json mode=True. Full table: [bench/results/results.md](bench/results/results.md)._
+_Measured 2026-10-21T11:21:19+00:00 with `nvidia/Nemotron-3-Ultra-550b-a55b` (Ultra role) and `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` (Nano role), local sandbox, 1 trial(s) per repo; agent techniques: candidates=3, sbfl=True, isolation rerun=True, minimize patch=True, sanity check=True, nano json mode=True. Full table: [bench/results/results.md](bench/results/results.md)._
 
 | Mode | Runs | Pass rate | Mean attempts to success | Ultra tokens (in / out) | Nano tokens (in / out) | Ultra mean latency/call | Nano mean latency/call | Total cost (USD) | Total wall time |
 |---|---|---|---|---|---|---|---|---|---|
-| agent | 15 | 15/15 (100.0%) | 1.07 | 94747 / 66446 | 37555 / 18555 | 6.83s | 1.63s | 0.3008 | 314.1s |
-| single-shot | 15 | 10/15 (66.7%) | 1.00 | 13234 / 13882 | 0 / 0 | 3.70s | n/as | 0.0549 | 86.5s |
+| agent | 15 | 15/15 (100.0%) | 1.13 | 75352 / 47280 | 40508 / 23982 | 8.25s | 1.67s | 0.2254 | 336.2s |
+| single-shot | 15 | 14/15 (93.3%) | 1.00 | 13235 / 22008 | 0 / 0 | 6.05s | n/a | 0.0793 | 128.9s |
 
-Nano triage (agent): 32,099 chars of raw pytest output were condensed to 7,874 chars of summary for Ultra (75% smaller).
+Nano triage (agent): 33,704 chars of raw pytest output were condensed to 8,312 chars of summary for Ultra (75% smaller).
 <!-- BENCH:END -->
 
 ## Techniques and sources
 
 Each technique below comes from published work or official documentation. Each has an env
 switch, so the benchmark can measure it with `--set` ablations. They are verified offline
-with the fake model; their effect on real pass rates has **not been measured yet**.
+with the fake model. The full agent with all of them on is measured (see Benchmark), but
+**per-technique ablations have not been run yet**.
 
 | Technique | What it does here | Source | Switch | Tests |
 |---|---|---|---|---|
@@ -270,8 +279,29 @@ as shipped and passes with its reference fix in
 [`bench/reference_fixes`](bench/reference_fixes), which the agent never sees. This is
 verified by `tests/test_bench_repos.py`.
 
-Results: see the table under [Where Token Factory helped](#where-token-factory-helped) and
-[bench/results/results.md](bench/results/results.md). **Status: not yet run.**
+**Results (2026-10-21, real Nemotron calls, 1 trial per repo):** the full agent fixed
+**15/15**, and the single-shot baseline (one Ultra call, no loop) fixed **14/15**. The
+summary table is under [Where Token Factory helped](#where-token-factory-helped). Per-repo
+numbers are in [bench/results/results.md](bench/results/results.md). What the runs showed:
+
+- **These bugs are easy for Nemotron Ultra.** One call already fixes 14 of 15. The loop's
+  value showed on the one it missed, `inventory_early_return`: all three agent candidates
+  agreed on the same wrong fix (2 tests still failing). Single-shot stopped there; the agent
+  kept the partial improvement and finished the fix on attempt 2. Candidates agreeing does
+  not make a fix right; running the tests is what caught it.
+- **The agent costs more for that safety:** $0.225 against $0.079 for all 15 repos, and
+  336 s against 129 s of wall time. That is mostly the 3 parallel candidates and the extra
+  sandbox runs.
+- **The first run found a patcher gap.** Nemotron Ultra pads hunks with a blank line past
+  the end of the file. That run scored 15/15 against 10/15, and 3 of the baseline's 5
+  failures were valid diagnoses whose diffs the patcher rejected. After the fix, the
+  agent's rejected diffs fell from 22 to 7. Run 1 is archived in
+  [bench/results/history/](bench/results/history/2026-10-21-run1-before-blank-context-fix.md).
+- **Minimization ran on the two multi-region patches** and confirmed both regions were
+  needed. On this benchmark, Ultra's patches were already minimal.
+
+Single trials of 15 small repos give a coarse signal. Run `--trials 3` for variance, and
+use `--set` ablations to measure each technique on its own.
 
 ## Limitations
 
@@ -288,8 +318,11 @@ Results: see the table under [Where Token Factory helped](#where-token-factory-h
   again after each kept partial fix), one test run per distinct candidate, and up to
   `MINIMIZE_MAX_RUNS` runs for minimization. Three candidates also triple the Ultra tokens
   per attempt. Set `CANDIDATES=1` and the switches above to `false` for the plain loop.
-- Not measured yet: real pass rates, latency, and token use. Nebius Serverless deployment
-  and jobs are untested against live infrastructure.
+- The benchmark is small (15 repos, one simple seeded bug each, 1 trial). A strong model
+  fixes most of them in one call, so it shows reliability and cost rather than the ceiling
+  on hard bugs. Per-technique ablations have not been run yet.
+- Benchmark runs used the local subprocess sandbox; the Docker sandbox is exercised by CI.
+  Nebius Serverless deployment and jobs are untested against live infrastructure.
 
 ## Verification status
 
@@ -297,14 +330,14 @@ Results: see the table under [Where Token Factory helped](#where-token-factory-h
 |---|---|
 | Patch parsing/validation/application, pytest parsing, localization | Verified (unit tests) |
 | Agent loop: corrections, regression revert, budgets, sanity rejection, single-shot baseline | Verified with a scripted fake model + local sandbox |
-| SBFL (both `sys.monitoring` and `sys.settrace` paths), isolation rerun, parallel candidates with voting, minimization, static anti-gaming checks, compile check | Verified with the fake model + local sandbox (Python 3.14); **effect on real pass rates not measured** |
+| SBFL (both `sys.monitoring` and `sys.settrace` paths), isolation rerun, parallel candidates with voting, minimization, static anti-gaming checks, compile check | Verified with the fake model + local sandbox (Python 3.14), and exercised in the real benchmark; **per-technique effect not measured** (no ablations yet) |
 | Web API + SSE stream to completion | Verified (real uvicorn server in tests) and in a browser (fake model, all techniques on) |
 | Replay mode on a static server (the GitHub Pages path) | Verified in a browser with a throwaway recording from a fake run; `publish-recording` refuses fake-model runs (tested) |
 | Bench repos fail before / pass after reference fix | Verified with the local sandbox |
 | Docker sandbox (network blocked, timeout kill, read-only root) | **Not run locally** (no Docker on the build machine); the CI workflow runs these tests on GitHub's Ubuntu runners once the repo is pushed |
 | Python 3.11-3.13 | **Not run locally** (only 3.14 installed); covered by the CI matrix once pushed |
 | Real Nemotron calls, model IDs, JSON mode, red-to-green example run | **Verified 2026-10-21** with real Token Factory calls ([docs/example_run.md](docs/example_run.md)) |
-| Benchmark numbers | See the benchmark table; filled only by a real `test-repair bench` run |
+| Benchmark: agent vs single-shot, 15 repos | **Measured 2026-10-21** (agent 15/15, single-shot 14/15); 1 trial, local sandbox |
 | Nebius Serverless Endpoints/Jobs, Container Registry, MysteryBox | **Untested against live Nebius infrastructure** |
 
 ## Repository layout

@@ -57,13 +57,13 @@ instead and say "this is a replay of a recorded run" in the narration. If you re
 `SANDBOX_BACKEND=local`, don't say "Docker container" in the narration; say "a sandboxed
 subprocess".
 
-Upload with visibility **Public**, not Unlisted, since the rules ask for a public video.
+Upload as **Public** or **Unlisted** (no password); the Devpost form accepts either. Only the first 3 minutes are reviewed.
 
 **Title:**
-> Test-Repair Agent: fixing failing tests with NVIDIA Nemotron on Nebius Token Factory
+> Suture: fixing failing tests with NVIDIA Nemotron on Nebius Token Factory
 
 **Description:**
-> Test-Repair Agent diagnoses failing pytest suites, writes a minimal patch, verifies it in a
+> Suture diagnoses failing pytest suites, writes a minimal patch, verifies it in a
 > sandbox, and iterates until the tests pass. NVIDIA Nemotron Ultra diagnoses the fault and
 > writes candidate patches in parallel. Nemotron Nano triages test output and reviews patches
 > for test-gaming. Both are served by Nebius Token Factory's OpenAI-compatible API.

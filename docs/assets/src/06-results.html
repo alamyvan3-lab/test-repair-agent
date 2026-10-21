@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root { --text:#f0f3f6; --muted:#9aa7b6; --dim:#6b7787; --green:#76b900; --ok:#7ee787;
+  --bad:#ff7b72; --ultra:#c7adff; --ultra-bg:#2b2140; --nano:#7fd6e0; --nano-bg:#15303a;
+  --card:#151b23; --line:#2a323d; }
+* { box-sizing:border-box; margin:0; padding:0; }
+html, body { width:1500px; height:1000px; overflow:hidden; }
+body { font-family:"Segoe UI", system-ui, sans-serif; color:var(--text); position:relative;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0) 0 0 / 28px 28px,
+    radial-gradient(ellipse at 15% 5%, #1b2a3a 0%, transparent 55%),
+    radial-gradient(ellipse at 95% 95%, rgba(118,185,0,0.12) 0%, transparent 50%),
+    linear-gradient(160deg, #121a24, #090d13); }
+.head { position:absolute; left:84px; top:64px; right:84px; }
+.kicker { font-size:24px; font-weight:700; letter-spacing:3px; color:var(--green);
+  text-transform:uppercase; }
+h1 { font-size:58px; font-weight:700; letter-spacing:-1px; margin-top:8px; }
+.sub { font-size:25px; color:var(--muted); margin-top:10px; }
+.chip { display:inline-block; font-size:19px; font-weight:700; padding:3px 12px; border-radius:999px; }
+.chip.ultra { background:var(--ultra-bg); color:var(--ultra); }
+.chip.nano { background:var(--nano-bg); color:var(--nano); }
+.foot { position:absolute; left:84px; right:84px; bottom:40px; font-size:19px; color:var(--dim); }
+
+    .bars { position:absolute; left:84px; top:330px; width:820px; }
+    .bar { display:grid; grid-template-columns:270px 1fr 110px; align-items:center; gap:18px;
+      margin-bottom:34px; }
+    .bl { font-size:26px; font-weight:600; color:#d6dde5; }
+    .track { height:46px; background:#1a2129; border-radius:12px; overflow:hidden; }
+    .fill { height:100%; border-radius:12px; }
+    .bv { font-size:40px; font-weight:700; }
+    .caption { font-size:21px; color:var(--muted); width:820px; line-height:1.45; }
+    .stats { position:absolute; right:84px; top:310px; width:470px; display:grid; gap:24px; }
+    .stat { background:var(--card); border:2px solid var(--line); border-radius:18px;
+      padding:18px 22px; }
+    .stat b { font-size:44px; display:block; letter-spacing:-1px; }
+    .stat span { font-size:20px; color:var(--muted); }
+    .roles { position:absolute; left:84px; top:640px; width:820px; border-collapse:collapse;
+      font-size:22px; }
+    .roles th { text-align:left; color:var(--dim); font-weight:600; padding:8px 10px;
+      border-bottom:2px solid var(--line); }
+    .roles td { padding:12px 10px; border-bottom:1px solid var(--line); }
+    .roles td.n, .roles th.n { text-align:right; font-variant-numeric:tabular-nums; }
+    </style></head><body><div class="head"><div class="kicker">Measured, not estimated</div><h1>15 seeded-bug repos, real Nemotron calls</h1><div class="sub">Benchmark run 2026-10-21 · 1 trial per repo · numbers written by bench/run_bench.py</div></div><div class="bars"><div class="bar"><div class="bl">Suture (full agent)</div><div class="track"><div class="fill" style="width:100.0%;background:var(--green)"></div></div><div class="bv">15/15</div></div><div class="bar"><div class="bl">One Ultra call, no loop</div><div class="track"><div class="fill" style="width:93.3%;background:#4a5868"></div></div><div class="bv">14/15</div></div><div class="caption">The repo the baseline missed: all three Ultra candidates agreed on the same wrong fix. The tests caught it, and Suture fixed it on attempt 2.</div></div><table class="roles"><tr><th>Agent mode</th><th class="n">Calls</th><th class="n">Mean latency</th><th class="n">Cost</th></tr><tr><td><span class="chip ultra">ULTRA</span> Nemotron-3-Ultra</td><td class="n">57</td><td class="n">8.3 s</td><td class="n">$0.217</td></tr><tr><td><span class="chip nano">NANO</span> Nemotron-3-Nano</td><td class="n">67</td><td class="n">1.7 s</td><td class="n">$0.008</td></tr></table><div class="stats"><div class="stat"><b>4%</b><span>of model spend went to Nano, which made the most calls</span></div><div class="stat"><b>75% smaller</b><span>pytest output after Nano triage, before Ultra reads it</span></div><div class="stat"><b>$0.23</b><span>to run the full agent on all 15 repos on Token Factory</span></div></div><div class="foot">A first run, before a patcher fix for how Nemotron pads diffs, is kept in bench/results/history/.</div></body></html>

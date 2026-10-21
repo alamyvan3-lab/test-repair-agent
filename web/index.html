@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Test-Repair Agent</title>
+<title>Suture</title>
 <style>
   :root {
     --bg: #f6f7f9; --panel: #ffffff; --text: #1b1f24; --muted: #5d6673; --line: #dfe3e8;
@@ -75,8 +75,8 @@
 <body>
 <main>
   <header>
-    <h1>Test-Repair Agent</h1>
-    <p>Repairs failing pytest suites with NVIDIA Nemotron on Nebius Token Factory, inside a sandbox.</p>
+    <h1>Suture</h1>
+    <p>Minimal, verified fixes for failing tests, using NVIDIA Nemotron on Nebius Token Factory.</p>
     <div class="bar"></div>
   </header>
 
@@ -346,8 +346,10 @@ async function initReplay() {
     $("recording").append(opt);
   }
   if (recordings.some((r) => r.file === params.get("replay"))) $("recording").value = params.get("replay");
+  if (["1", "2", "5"].includes(params.get("speed"))) $("speed").value = params.get("speed");
   $("recording").addEventListener("change", showRecordingModels);
   showRecordingModels();
+  if (params.has("play")) play();  // shareable links: ?replay=<file>&play
 }
 
 async function play() {

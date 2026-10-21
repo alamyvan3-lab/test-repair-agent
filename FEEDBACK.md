@@ -1,6 +1,6 @@
 # Feedback: Nebius Token Factory, Nebius AI Cloud, NVIDIA models and tools
 
-This feedback comes from building Test-Repair Agent. Each item is labelled by how it was
+This feedback comes from building Suture (repository `test-repair-agent`). Each item is labelled by how it was
 observed:
 
 - **[docs]**: read in the official documentation or cookbook while building
@@ -31,6 +31,11 @@ observed:
   was accepted, and every triage and sanity answer parsed as JSON.
 - **[live] Parallel requests are served in parallel.** Three concurrent Ultra calls
   (2.1 s, 2.1 s, 3.8 s) were all back after 3.8 s, with no 429 and no retries.
+- **[live] Occasional latency spikes.** Ultra calls usually took 2–8 s (mean 6.8 s per
+  call in run 1, 8.3 s in run 2). But in run 1 one batch of three concurrent calls, each
+  producing about 1,000 tokens, took 63 s. In run 2 two single calls took 44 s and 48 s.
+  Nothing failed and nothing was retried. A note on expected tail latency would help agent
+  builders set timeouts; this project uses 180 s.
 
 - **[docs] The OpenAI compatibility is easy to adopt.** Per the quickstart, the stock
   `openai` SDK with `base_url="https://api.tokenfactory.nebius.com/v1/"` and an API key is
@@ -101,8 +106,19 @@ observed:
 - **[docs] The Nemotron 3 family maps naturally onto a two-tier agent.** Ultra (550B, 55B
   active) handles diagnosis and patching, and Nano (30B, 3B active) handles triage and
   review. The catalog prices (Ultra $1/$3, Nano $0.06/$0.24 per 1M in/out tokens) make
-  moving the frequent calls to Nano worthwhile on paper. The benchmark will measure whether
-  it holds.
+  moving the frequent calls to Nano worthwhile on paper.
+- **[live] In practice, Nano did the frequent work cheaply.** In benchmark run 1 (15 repos,
+  agent mode), Nano made 61 calls for $0.0067 in total, at 1.63 s per call. Ultra made 67
+  calls for $0.294, at 6.83 s per call. Nano also cut 32,099 characters of raw pytest
+  output down to 7,874 characters of summary for Ultra.
+- **[live] Ultra writes good fixes, but its diff formatting has habits worth knowing.**
+  It often pads a hunk with one blank context line past the end of the file, as if every
+  file ended with an empty line. In run 1 that caused 18 of 22 rejected diffs in agent mode,
+  and 3 of 5 single-shot failures. In those three cases the diagnosis was right; the patch
+  just couldn't be applied. Once, it split a two-file fix into two ```diff blocks despite
+  being told to use one. Both are now handled: the patcher trims blank edge context, and
+  the correction loop asks for one block. Strict parsers of Nemotron diffs should expect
+  this.
 
 ## Add your observations here (after live runs)
 
