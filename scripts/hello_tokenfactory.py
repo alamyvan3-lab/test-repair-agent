@@ -119,6 +119,7 @@ def main() -> int:
               f"finish {r['finish_reason']}, reply {r['reply']!r}")
 
     if args.json:
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
         Path(args.json).write_text(json.dumps(results, indent=2), encoding="utf-8", newline="\n")
         print(f"\nWrote {args.json}")
     return 0 if len(results) == 2 else 1

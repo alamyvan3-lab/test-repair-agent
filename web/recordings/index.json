@@ -1,4 +1,19 @@
 {
   "live_url": "",
-  "recordings": []
+  "recordings": [
+    {
+      "file": "demo_invoice-20261021-110309.jsonl",
+      "repo": "demo_invoice",
+      "title": "Invoice coupon bug (real run)",
+      "status": "SUCCESS",
+      "attempts": 1,
+      "wall_time_s": 13.685,
+      "recorded_at": "2026-10-21 11:03 UTC",
+      "models": {
+        "ultra": "nvidia/Nemotron-3-Ultra-550b-a55b",
+        "nano": "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"
+      },
+      "sandbox": "local"
+    }
+  ]
 }
