@@ -28,7 +28,8 @@ observed:
   `<think>` block, so the reasoning is counted but not shown. That's fine for cost at Nano
   prices, but worth documenting per model, along with how to switch it off.
 - **[live] JSON mode works on Nemotron Nano.** `response_format={"type": "json_object"}`
-  was accepted, and every triage and sanity answer parsed as JSON.
+  was accepted. In benchmark run 2, 16 of 17 triage answers and all 50 sanity reviews parsed
+  as JSON; the agent falls back to its own parsed failure list when one doesn't.
 - **[live] Parallel requests are served in parallel.** Three concurrent Ultra calls
   (2.1 s, 2.1 s, 3.8 s) were all back after 3.8 s, with no 429 and no retries.
 - **[live] Occasional latency spikes.** Ultra calls usually took 2–8 s (mean 6.8 s per
