@@ -7,9 +7,9 @@ Copy-paste text for the form and the ordered critical path are in
 
 | Requirement | Where | Status |
 |---|---|---|
-| Uses NVIDIA Nemotron via Nebius Token Factory (OpenAI-compatible API) | `src/test_repair/llm.py`, `.env.example` | Implemented; **live calls not yet run** |
+| Uses NVIDIA Nemotron via Nebius Token Factory (OpenAI-compatible API) | `src/test_repair/llm.py`, `.env.example` | Done; live calls verified 2026-10-21 |
 | Model split: Ultra for diagnosis/patch, Nano/Super for triage + sanity, env-configurable | `MODEL_ULTRA`, `MODEL_NANO` in `.env.example`; `src/test_repair/agent.py` | Implemented |
-| Model IDs from a live `/v1/models` listing | `scripts/hello_tokenfactory.py` | **To do: run it with your key and update `.env.example` if the IDs differ** |
+| Model IDs from a live `/v1/models` listing | `scripts/hello_tokenfactory.py` | Done 2026-10-21; both catalog IDs are live, no substitution |
 | Public repo with Apache-2.0 `LICENSE` at the root, named at the top of the README | `LICENSE`, `README.md` line 1-4 | Done |
 | README: setup and run instructions | `README.md` Quickstart | Done |
 | README: how Nemotron is used | `README.md` "How Nemotron is used" | Done (numbers pending a bench run) |
@@ -19,7 +19,7 @@ Copy-paste text for the form and the ordered critical path are in
 | `FEEDBACK.md` | `FEEDBACK.md` | Seeded; add your live observations |
 | Project description | `docs/PROJECT_DESCRIPTION.md` | Done |
 | Demo video script (≤ 3 min) | `docs/DEMO_SCRIPT.md` | Done; fill the numbers from results.md |
-| Example red-to-green run with real calls | `docs/example_run.md` | **To do: `test-repair run examples/demo_invoice --save-md docs/example_run.md`** |
+| Example red-to-green run with real calls | `docs/example_run.md` | Done 2026-10-21 (SUCCESS in 1 attempt, 13.7 s); also published for replay |
 | Benchmark with real results and a single-shot baseline | `bench/results/results.md` | **To do: run the benchmark** |
 | Unit and guardrail tests pass | `pytest` | 155 passed, 22 skipped (Docker/live) on the build machine and in a fresh clone; CI runs the Docker ones |
 

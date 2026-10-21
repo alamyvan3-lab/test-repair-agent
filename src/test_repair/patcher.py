@@ -296,6 +296,18 @@ def _reindent(line: str, delta: int) -> str:
     return line
 
 
+def _trim_blank_edges(hunk: Hunk) -> Hunk:
+    """Drop blank context lines at the start and end of a hunk (they carry no location)."""
+    lines = list(hunk.lines)
+    start = hunk.old_start
+    while lines and lines[0][:1] == " " and not lines[0][1:].strip():
+        lines.pop(0)
+        start += 1
+    while lines and lines[-1][:1] == " " and not lines[-1][1:].strip():
+        lines.pop()
+    return Hunk(old_start=start, lines=lines)
+
+
 def _find(haystack: list[str], needle: list[str], hint: int) -> tuple[int, int] | None:
     """Locate `needle` in `haystack` as (position, indentation shift).
 
@@ -371,6 +383,11 @@ def _render_file(fp: FilePatch, repo: Path) -> tuple[list[str], str]:
             located.append((min(max(hunk.old_start, 0), len(file_lines)), 0, hunk))
             continue
         found = _find(file_lines, old, hunk.old_start - 1)
+        if found is None:  # models often pad hunks with blank context past end of file
+            trimmed = _trim_blank_edges(hunk)
+            if trimmed.old_lines:
+                found = _find(file_lines, trimmed.old_lines, trimmed.old_start - 1)
+                hunk = trimmed
         if found is None:
             raise _mismatch(path, number, old, file_lines)
         located.append((found[0], found[1], hunk))

@@ -348,6 +348,10 @@ def _techniques_text(t: dict[str, Any]) -> str:
     return ", ".join(f"{k.replace('_', ' ')}={v}" for k, v in t.items())
 
 
+def _secs(value: float | None) -> str:
+    return "n/a" if value is None else f"{value:.2f}s"
+
+
 def _fmt(value: Any, digits: int = 2) -> str:
     if value is None:
         return "n/a"
@@ -370,7 +374,7 @@ def summary_table(agg: dict[str, Any]) -> str:
             f"({m['pass_rate'] * 100:.1f}%) | {_fmt(m['mean_attempts_to_success'])} | "
             f"{u['prompt_tokens']} / {u['completion_tokens']} | "
             f"{n['prompt_tokens']} / {n['completion_tokens']} | "
-            f"{_fmt(u['mean_latency_per_call_s'])}s | {_fmt(n['mean_latency_per_call_s'])}s | "
+            f"{_secs(u['mean_latency_per_call_s'])} | {_secs(n['mean_latency_per_call_s'])} | "
             f"{_fmt(m['total_cost_usd'], 4)} | {m['total_wall_time_s']:.1f}s |"
         )
     for mode, m in agg.items():

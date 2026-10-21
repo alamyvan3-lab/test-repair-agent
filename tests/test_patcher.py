@@ -1,7 +1,9 @@
+import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+from helpers import BENCH
 
 from test_repair import patcher
 from test_repair.patcher import PatchError, is_config_file, is_test_file
@@ -245,3 +247,28 @@ def test_test_gaming_code_is_rejected(repo: Path, added: str, match: str):
     diff = GOOD.replace("+    return a + b", f"+{added}\n+    return a + b")
     with pytest.raises(PatchError, match=match):
         patcher.prepare(answer(diff), repo, 60)
+
+
+def test_blank_context_padding_past_end_of_file(tmp_path: Path):
+    # Exact diff shape Nemotron Ultra produced in the 2026-10-21 benchmark: a blank context
+    # line after the file's last line, which does not exist.
+    shutil.copytree(BENCH / "repos" / "pager_offbyone", tmp_path / "repo")
+    repo = tmp_path / "repo"
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    diff = (
+        "--- a/pager/core.py\n+++ b/pager/core.py\n"
+        "@@ -10,7 +10,7 @@ def total_pages(count: int, size: int) -> int:\n \n"
+        " def page(items: list, number: int, size: int) -> list:\n"
+        '     """Items on page `number` (1-based)."""\n'
+        "     check_page_args(number, size)\n"
+        "-    start = number * size\n+    start = (number - 1) * size\n"
+        "     return items[start:start + size]\n \n"
+    )
+    patcher.apply(patcher.prepare(answer(diff), repo, 60), repo)
+    assert "start = (number - 1) * size" in (repo / "pager" / "core.py").read_text(encoding="utf-8")
+
+
+def test_blank_edge_trimming_does_not_hide_real_mismatches(repo: Path):
+    bad = GOOD.replace("-    return a - b", "-    return a - b - 0") + " \n"
+    with pytest.raises(PatchError, match="does not match"):
+        patcher.prepare(answer(bad), repo, 60)

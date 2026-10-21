@@ -5,11 +5,32 @@ observed:
 
 - **[docs]**: read in the official documentation or cookbook while building
   (2026-10-12).
-- **[live]**: observed while calling the service. *No live items yet: the build machine had
-  no API key or Docker. Add them below after running `scripts/hello_tokenfactory.py` and the
-  benchmark.*
+- **[live]**: observed while calling the service (from 2026-10-21).
 
 ## Nebius Token Factory
+
+- **[live] It worked first time with the stock OpenAI SDK.** The base URL plus a key was all
+  it took. A one-word prompt answered in 0.98 s on Ultra and 0.75 s on Nano.
+- **[live] The model IDs on the catalog page are the ones the API serves.**
+  `nvidia/Nemotron-3-Ultra-550b-a55b` and `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` are both
+  listed by `/v1/models`. The lowercase Nano ID from the cookbook
+  (`nvidia/nvidia-nemotron-3-nano-30b-a3b`) is not in the listing; use the catalog casing.
+- **[live] Both base URLs serve the same Nemotron models.** The default endpoint listed 28
+  models (5 Nemotron, including `Nemotron-3_5-Lightning` and `Nemotron-3.5-Super-VL`). The
+  `us-central1` endpoint listed 18 (4 Nemotron). So the regional URL in the cookbook is an
+  option, not a requirement.
+- **[live] `/v1/models?verbose=true` pricing is per token, as decimal strings.** For
+  example Ultra has `"prompt": "0.000001"`, i.e. $1 per 1M tokens, matching the catalog.
+  The currency is still not stated. The `status` field from the API reference was absent
+  for these models.
+- **[live] Nano spends hidden reasoning tokens.** It returned a clean `OK` but billed 71
+  completion tokens for it, and about 750 for a triage summary. The visible content had no
+  `<think>` block, so the reasoning is counted but not shown. That's fine for cost at Nano
+  prices, but worth documenting per model, along with how to switch it off.
+- **[live] JSON mode works on Nemotron Nano.** `response_format={"type": "json_object"}`
+  was accepted, and every triage and sanity answer parsed as JSON.
+- **[live] Parallel requests are served in parallel.** Three concurrent Ultra calls
+  (2.1 s, 2.1 s, 3.8 s) were all back after 3.8 s, with no 429 and no retries.
 
 - **[docs] The OpenAI compatibility is easy to adopt.** Per the quickstart, the stock
   `openai` SDK with `base_url="https://api.tokenfactory.nebius.com/v1/"` and an API key is

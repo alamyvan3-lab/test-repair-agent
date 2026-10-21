@@ -16,13 +16,13 @@ a full event log. You can watch every step live in a web UI.
 `<https://<github-user>.github.io/test-repair-agent/ after the first recording>` · video
 `<YouTube link>`. See [docs/SUBMISSION.md](docs/SUBMISSION.md).
 
-> **Verification status (2026-10-12).** The code, the test suite (155 offline tests pass; 22 more need Docker or a key), and
-> the guardrail tests are verified. These tests use a scripted fake model and the local
-> subprocess sandbox. **Not yet run:** real Token Factory calls (no API key was available
-> while building), the Docker sandbox tests (Docker was not installed on the build
-> machine; the included GitHub Actions workflow runs them), the benchmark, and anything on
-> Nebius AI Cloud. Every section below says which parts are measured and which are
-> pending. See [Verification status](#verification-status).
+> **Verification status (2026-10-21).** Real Nemotron calls on Token Factory work. The
+> first real red-to-green run is in [docs/example_run.md](docs/example_run.md), and it is
+> also the replay demo. The offline test suite (155 tests pass; 22 more need Docker or a
+> key) and the guardrail tests are verified. **Not yet run:** the Docker sandbox tests
+> (Docker is not installed on the build machine; the GitHub Actions workflow runs them)
+> and anything on Nebius AI Cloud. Every section below says which parts are measured. See
+> [Verification status](#verification-status).
 
 ## How it works
 
@@ -137,10 +137,21 @@ Live model tests run only with `pytest -m live` and a configured `.env`.
 | Nano | `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` (`MODEL_NANO`) | (1) Triage: condense raw pytest output into JSON (failing tests, error class, key lines, summary). (2) Sanity check: flag diffs that special-case test inputs or hard-code expected values. | Cheap, fast calls on every attempt. They shrink what Ultra has to read and catch test-gaming patches before a test run. | temperature 0.0, JSON mode (`response_format`) with automatic fallback |
 
 `nvidia/nemotron-3-super-120b-a12b` also fits the Nano role. Set `MODEL_NANO` to switch.
-The model IDs above come from the public Token Factory catalog and have not yet been checked
-against a live `/v1/models` call. If your account lacks one of them,
-`scripts/hello_tokenfactory.py` suggests the closest Nemotron model it finds. Record any
-substitution here and in [FEEDBACK.md](FEEDBACK.md).
+Both model IDs were checked against a live `GET /v1/models` on 2026-10-21. Both are served
+at the default base URL and at `api.tokenfactory.us-central1.nebius.com`, so no
+substitution was needed. If your account lacks one of them,
+`scripts/hello_tokenfactory.py` suggests the closest Nemotron model it finds.
+
+**Measured in the first real run** ([docs/example_run.md](docs/example_run.md), demo_invoice,
+red to green in 1 attempt and 13.7 s wall time):
+
+| Role | Calls | Prompt / completion tokens | Mean latency per call | Cost at listed prices |
+|---|---|---|---|---|
+| Ultra (`nvidia/Nemotron-3-Ultra-550b-a55b`) | 3 | 5,334 / 2,142 | 2.67 s | $0.0118 |
+| Nano (`nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`) | 4 | 2,405 / 1,189 | 1.26 s | $0.0004 |
+
+All three Ultra candidates proposed the same fix, `return min(value, amount)`, so it won
+with 3 votes. The fault-localization step had already ranked that exact line first.
 
 Both roles use the same thread-safe OpenAI-compatible client
 ([`src/test_repair/llm.py`](src/test_repair/llm.py)). It retries connection, timeout,
@@ -160,8 +171,16 @@ What the benchmark measures for this section, per role: mean latency per call, p
 completion tokens, cost at catalog prices, and how much Nano's triage shrank the failure
 text Ultra had to read.
 
-- **Measured:** _pending a live benchmark run._ The block below is replaced with real
-  numbers by `test-repair bench --readme README.md`. Nothing in it is written by hand.
+- **Measured in the first real run:**
+  - The three Ultra candidates ran concurrently, taking 2.1 s, 2.1 s and 3.8 s. All three
+    were back 3.8 s after they started; one after another they would have taken 8.0 s.
+  - Nano's triage condensed 1,856 characters of pytest output into a 720-character summary
+    for Ultra, using Token Factory's JSON mode (`response_format`), which the Nano model
+    accepted.
+  - Nano costs $0.06 / $0.24 per 1M tokens against Ultra's $1 / $3, so the 4 Nano calls
+    cost $0.0004 in total.
+- **Measured across the benchmark:** the block below is replaced with real numbers by
+  `test-repair bench --readme README.md`. Nothing in it is written by hand.
 - **Integration facts (no performance claim):** both Nemotron roles sit behind one
   OpenAI-compatible endpoint and one key, so moving a role to another model is a one-line
   env change (`MODEL_ULTRA`/`MODEL_NANO`). The agent needs no provider-specific SDK; it uses
@@ -171,8 +190,14 @@ text Ultra had to read.
   something the benchmark's per-call latencies will show.
 
 <!-- BENCH:START -->
-_No benchmark has been run yet. Run `test-repair bench --readme README.md` with a Token
-Factory key to fill in this table with measured numbers._
+_Measured 2026-10-21T11:10:41+00:00 with `nvidia/Nemotron-3-Ultra-550b-a55b` (Ultra role) and `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B` (Nano role), local sandbox, 1 trial(s) per repo; agent techniques: candidates=3, sbfl=True, isolation rerun=True, minimize patch=True, sanity check=True, nano json mode=True. Full table: [bench/results/results.md](bench/results/results.md)._
+
+| Mode | Runs | Pass rate | Mean attempts to success | Ultra tokens (in / out) | Nano tokens (in / out) | Ultra mean latency/call | Nano mean latency/call | Total cost (USD) | Total wall time |
+|---|---|---|---|---|---|---|---|---|---|
+| agent | 15 | 15/15 (100.0%) | 1.07 | 94747 / 66446 | 37555 / 18555 | 6.83s | 1.63s | 0.3008 | 314.1s |
+| single-shot | 15 | 10/15 (66.7%) | 1.00 | 13234 / 13882 | 0 / 0 | 3.70s | n/as | 0.0549 | 86.5s |
+
+Nano triage (agent): 32,099 chars of raw pytest output were condensed to 7,874 chars of summary for Ultra (75% smaller).
 <!-- BENCH:END -->
 
 ## Techniques and sources
@@ -278,7 +303,8 @@ Results: see the table under [Where Token Factory helped](#where-token-factory-h
 | Bench repos fail before / pass after reference fix | Verified with the local sandbox |
 | Docker sandbox (network blocked, timeout kill, read-only root) | **Not run locally** (no Docker on the build machine); the CI workflow runs these tests on GitHub's Ubuntu runners once the repo is pushed |
 | Python 3.11-3.13 | **Not run locally** (only 3.14 installed); covered by the CI matrix once pushed |
-| Real Nemotron calls, red-to-green example run, benchmark numbers | **Not run**: no API key was available during the build |
+| Real Nemotron calls, model IDs, JSON mode, red-to-green example run | **Verified 2026-10-21** with real Token Factory calls ([docs/example_run.md](docs/example_run.md)) |
+| Benchmark numbers | See the benchmark table; filled only by a real `test-repair bench` run |
 | Nebius Serverless Endpoints/Jobs, Container Registry, MysteryBox | **Untested against live Nebius infrastructure** |
 
 ## Repository layout
